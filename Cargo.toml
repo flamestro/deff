@@ -1,0 +1,17 @@
+[package]
+name = "deff"
+version = "0.1.0"
+edition = "2024"
+description = "Interactive side-by-side git diff viewer for PR review"
+license = "MIT"
+repository = "https://github.com/your-org/pr-diff"
+readme = "README.md"
+
+[dependencies]
+anyhow = "1.0.100"
+clap = { version = "4.5.53", features = ["derive"] }
+crossterm = "0.28.1"
+once_cell = "1.21.3"
+ratatui = "0.29.0"
+regex = "1.12.2"
+syntect = { version = "5.3.0", default-features = false, features = ["default-fancy"] }
