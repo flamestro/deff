@@ -8,7 +8,7 @@ use std::{
     process::Command,
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::{Parser, ValueEnum};
 use crossterm::{
     cursor::{Hide, Show},
@@ -17,15 +17,15 @@ use crossterm::{
         KeyModifiers, MouseEvent, MouseEventKind,
     },
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use once_cell::sync::{Lazy, OnceCell};
 use ratatui::{
+    Terminal,
     backend::{Backend, CrosstermBackend},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
     widgets::{Clear, Paragraph},
-    Terminal,
 };
 use regex::Regex;
 use syntect::{
@@ -1362,6 +1362,15 @@ fn render_frame(
         )
     };
 
+    let filename_line = format!("filename: {}", current_file.descriptor.display_path);
+    let file_meta_line = format!(
+        "file {}/{} [{}]  {}",
+        file_index + 1,
+        files.len(),
+        current_file.descriptor.raw_status,
+        side_summary
+    );
+
     lines.push(Line::from(fit_line(
         &format!(
             "deff review ({})  {}",
@@ -1369,17 +1378,13 @@ fn render_frame(
         ),
         layout.columns,
     )));
-    lines.push(Line::from(fit_line(
-        &format!(
-            "file {}/{} [{}] {}",
-            file_index + 1,
-            files.len(),
-            current_file.descriptor.raw_status,
-            current_file.descriptor.display_path
-        ),
-        layout.columns,
-    )));
-    lines.push(Line::from(fit_line(&side_summary, layout.columns)));
+    lines.push(Line::styled(
+        fit_line(&filename_line, layout.columns),
+        Style::default()
+            .add_modifier(Modifier::BOLD)
+            .add_modifier(Modifier::UNDERLINED),
+    ));
+    lines.push(Line::from(fit_line(&file_meta_line, layout.columns)));
     lines.push(Line::from(fit_line(
         &comparison.details.join(" | "),
         layout.columns,

@@ -33,6 +33,16 @@ This opens the side-by-side review so you can check exactly what changed in your
 - Keyboard and mouse navigation (including wheel + shift-wheel)
 - Language-aware syntax highlighting and line-level add/delete tinting
 
+## Examples
+
+Single-line change view:
+
+![Single-line change example](docs/example_01.png)
+
+Multi-line change view:
+
+![Multi-line change example](docs/example_02.png)
+
 ## Usage
 
 ```bash
