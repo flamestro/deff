@@ -4,6 +4,26 @@ My name is deff
 
 `deff` is a Rust TUI: interactive, side-by-side file review for git diffs with per-file navigation, vertical and horizontal scrolling, syntax highlighting, and added/deleted line tinting.
 
+## Quickstart
+
+Run the installer script from this repository:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/flamestro/deff/main/install.sh | bash
+```
+
+Installer source: https://github.com/flamestro/deff/blob/main/install.sh
+
+The script checks for `cargo`, clones this project into a temporary directory, installs it, and removes the temporary checkout.
+
+If you have local edits (including untracked files) and want to review them before committing, run:
+
+```bash
+deff --include-uncommitted
+```
+
+This opens the side-by-side review so you can check exactly what changed in your working tree.
+
 ## Features
 
 - `upstream-ahead` strategy (default) to compare local branch changes against its upstream
