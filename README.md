@@ -32,6 +32,8 @@ This opens the side-by-side review so you can check exactly what changed in your
 - Side-by-side panes with independent horizontal scroll offsets
 - Keyboard and mouse navigation (including wheel + shift-wheel)
 - Vim-like motion navigation (`h`/`j`/`k`/`l`, `g`/`G`, `Ctrl+u`/`Ctrl+d`)
+- In-diff search (`/` + Enter, then `n` / `N` to navigate matches)
+- Per-file reviewed toggles (`r`) with local persistence under `.git`
 - Language-aware syntax highlighting and line-level add/delete tinting
 
 ## Examples
@@ -105,6 +107,13 @@ Theme selection:
 - Use `--theme auto|dark|light` to control rendering for your terminal.
 - `--theme` takes precedence over `DEFF_THEME=dark|light`.
 
+Search and reviewed workflow:
+
+- Press `/` to enter a search query for the current file (searches both panes).
+- Press `Enter` to apply the query, then use `n` / `N` to jump matches.
+- Press `r` to mark the current file reviewed/unreviewed.
+- Reviewed state is persisted locally in `.git/deff/reviewed/` and keyed by comparison scope + file content hash.
+
 ## GitHub Release Workflow
 
 This repo ships with `.github/workflows/release.yml`.
@@ -112,3 +121,7 @@ This repo ships with `.github/workflows/release.yml`.
 - Trigger: push a tag like `v0.1.0`
 - Builds release artifacts for Linux and macOS targets
 - Creates a GitHub release and uploads tarballs + SHA256 files
+
+## Architecture and Extension Guide
+
+For a module-level map and extension plan, see `docs/architecture.md`.
