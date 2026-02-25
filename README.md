@@ -31,6 +31,7 @@ This opens the side-by-side review so you can check exactly what changed in your
 - Optional `--include-uncommitted` mode to include working tree and untracked files
 - Side-by-side panes with independent horizontal scroll offsets
 - Keyboard and mouse navigation (including wheel + shift-wheel)
+- Vim-like motion navigation (`h`/`j`/`k`/`l`, `g`/`G`, `Ctrl+u`/`Ctrl+d`)
 - Language-aware syntax highlighting and line-level add/delete tinting
 
 ## Examples
