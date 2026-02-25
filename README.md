@@ -1,4 +1,6 @@
-# deff 
+My name is deff
+
+# deff
 
 `deff` is a Rust TUI: interactive, side-by-side file review for git diffs with per-file navigation, vertical and horizontal scrolling, syntax highlighting, and added/deleted line tinting.
 
@@ -14,17 +16,17 @@
 ## Usage
 
 ```bash
-pr-diff
-pr-diff --strategy upstream-ahead
-pr-diff --strategy range --base origin/main --head HEAD
-pr-diff --strategy range --base origin/main --include-uncommitted
-pr-diff --theme dark
+deff
+deff --strategy upstream-ahead
+deff --strategy range --base origin/main --head HEAD
+deff --strategy range --base origin/main --include-uncommitted
+deff --theme dark
 ```
 
 Show help:
 
 ```bash
-pr-diff --help
+deff --help
 ```
 
 ## Local Build and Usage Flow
@@ -39,14 +41,14 @@ Prerequisites:
 
    ```bash
    cargo build --release --locked
-   ./target/release/pr-diff --help
+   ./target/release/deff --help
    ```
 
 2. Optionally install it to your local Cargo bin path:
 
    ```bash
    cargo install --path .
-   pr-diff --help
+   deff --help
    ```
 
 3. Run it inside any git repository you want to review:
@@ -55,22 +57,22 @@ Prerequisites:
    cd /path/to/your/repo
 
    # default: compare local branch commits vs upstream
-   pr-diff
+   deff
 
    # explicit range
-   pr-diff --base origin/main --head HEAD
+   deff --base origin/main --head HEAD
 
    # include uncommitted + untracked files
-   pr-diff --base origin/main --include-uncommitted
+   deff --base origin/main --include-uncommitted
    ```
 
 If your branch has no upstream configured, use the explicit `--base` flow.
 
 Theme selection:
 
-- By default, `pr-diff` prefers a dark syntax theme (better for black/dark terminals).
+- By default, `deff` prefers a dark syntax theme (better for black/dark terminals).
 - Use `--theme auto|dark|light` to control rendering for your terminal.
-- `--theme` takes precedence over `PR_DIFF_THEME=dark|light`.
+- `--theme` takes precedence over `DEFF_THEME=dark|light`.
 
 ## GitHub Release Workflow
 

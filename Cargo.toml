@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 description = "Interactive side-by-side git diff viewer for PR review"
 license = "MIT"
-repository = "https://github.com/your-org/pr-diff"
+repository = "https://github.com/your-org/deff"
 readme = "README.md"
 
 [dependencies]

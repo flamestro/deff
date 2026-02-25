@@ -8,7 +8,7 @@ use std::{
     process::Command,
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use clap::{Parser, ValueEnum};
 use crossterm::{
     cursor::{Hide, Show},
@@ -17,15 +17,15 @@ use crossterm::{
         KeyModifiers, MouseEvent, MouseEventKind,
     },
     execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use once_cell::sync::{Lazy, OnceCell};
 use ratatui::{
-    Terminal,
     backend::{Backend, CrosstermBackend},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
     widgets::{Clear, Paragraph},
+    Terminal,
 };
 use regex::Regex;
 use syntect::{
@@ -116,7 +116,7 @@ fn should_prefer_dark_theme() -> bool {
         }
     }
 
-    if let Ok(value) = std::env::var("PR_DIFF_THEME") {
+    if let Ok(value) = std::env::var("DEFF_THEME") {
         match value.trim().to_ascii_lowercase().as_str() {
             "dark" => return true,
             "light" => return false,
@@ -192,15 +192,15 @@ enum PaneSide {
 
 #[derive(Parser, Debug)]
 #[command(
-    name = "pr-diff",
+    name = "deff",
     about = "Shows side-by-side file content for a git diff in an interactive terminal UI.",
     after_help = r#"Examples:
-  pr-diff
-  pr-diff --strategy upstream-ahead
-  pr-diff --include-uncommitted
-  pr-diff --strategy range --base <git-ref> [--head <git-ref>]
-  pr-diff --strategy range --base <git-ref> --include-uncommitted
-  pr-diff --theme dark
+  deff
+  deff --strategy upstream-ahead
+  deff --include-uncommitted
+  deff --strategy range --base <git-ref> [--head <git-ref>]
+  deff --strategy range --base <git-ref> --include-uncommitted
+  deff --theme dark
 
 Key bindings:
   h / left-arrow   previous file
@@ -1364,7 +1364,7 @@ fn render_frame(
 
     lines.push(Line::from(fit_line(
         &format!(
-            "pr-diff review ({})  {}",
+            "deff review ({})  {}",
             comparison.strategy_id, comparison.summary
         ),
         layout.columns,
@@ -1714,7 +1714,7 @@ fn run_event_loop<B: Backend>(
 
 fn start_interactive_review(files: &[DiffFileView], comparison: &ResolvedComparison) -> Result<()> {
     if !io::stdin().is_terminal() || !io::stdout().is_terminal() {
-        bail!("Interactive TTY is required to run pr-diff");
+        bail!("Interactive TTY is required to run deff");
     }
 
     enable_raw_mode().context("failed to enable raw mode")?;
@@ -1812,7 +1812,7 @@ fn run() -> Result<()> {
 
 fn main() {
     if let Err(error) = run() {
-        eprintln!("pr-diff failed: {error}");
+        eprintln!("deff failed: {error}");
         std::process::exit(1);
     }
 }

@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  BINARY_NAME: pr-diff
+  BINARY_NAME: deff
 
 jobs:
   build:
@@ -93,7 +93,7 @@ jobs:
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          name: pr-diff ${{ github.ref_name }}
+          name: deff ${{ github.ref_name }}
           generate_release_notes: true
           files: |
             dist/*.tar.gz
