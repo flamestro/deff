@@ -6,7 +6,7 @@ PROJECT_NAME="deff"
 
 if ! command -v cargo >/dev/null 2>&1; then
   printf 'error: cargo is required but was not found in PATH.\n' >&2
-  printf 'Install Rust with rustup: https://rustup.rs/\n' >&2
+  printf 'Install Rust: https://rust-lang.org/tools/install/\n' >&2
   exit 1
 fi
 
