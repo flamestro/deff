@@ -114,13 +114,16 @@ Search and reviewed workflow:
 - Press `r` to mark the current file reviewed/unreviewed.
 - Reviewed state is persisted locally in `.git/deff/reviewed/` and keyed by comparison scope + file content hash.
 
-## GitHub Release Workflow
+## GitHub Version Bump Workflow
 
-This repo ships with `.github/workflows/release.yml`.
+This repo ships with `.github/workflows/bump-version.yml`.
 
-- Trigger: push a tag like `v0.1.0`
-- Builds release artifacts for Linux and macOS targets
-- Creates a GitHub release and uploads tarballs + SHA256 files
+- Trigger: publish a GitHub release with a tag like `v0.1.0`
+- Updates `Cargo.toml`/`Cargo.lock` on the default branch using commit prefixes (`feat:` -> next minor, `chore:`/`docs:` -> next patch)
+
+## Contributing
+
+See `CONTRIBUTING.md` for local setup, commit message conventions, and release/versioning rules.
 
 ## Architecture and Extension Guide
 
