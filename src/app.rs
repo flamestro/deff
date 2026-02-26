@@ -146,6 +146,31 @@ impl AppState {
         }
     }
 
+    fn jump_to_hunk(&mut self, files: &[DiffFileView], rows: u16, forward: bool) {
+        let hunk_starts = build_hunk_start_lines(&files[self.file_index]);
+        if hunk_starts.is_empty() {
+            return;
+        }
+
+        let target = if forward {
+            hunk_starts
+                .iter()
+                .find(|&&line| line > self.scroll_offset)
+                .or(hunk_starts.first())
+        } else {
+            hunk_starts
+                .iter()
+                .rev()
+                .find(|&&line| line < self.scroll_offset)
+                .or(hunk_starts.last())
+        };
+
+        if let Some(&line) = target {
+            let max_scroll = max_scroll_for_current_file(files, self, rows);
+            self.scroll_offset = line.min(max_scroll);
+        }
+    }
+
     fn enter_search_input_mode(&mut self) {
         self.search_input_mode = true;
         self.search_input.clear();
@@ -240,6 +265,23 @@ fn move_horizontal(
                 .clamp(0, max_offsets.right as isize) as usize;
         }
     }
+}
+
+fn build_hunk_start_lines(file: &DiffFileView) -> Vec<usize> {
+    let mut changed: Vec<usize> = file
+        .left_deleted_line_indexes
+        .iter()
+        .chain(file.right_added_line_indexes.iter())
+        .copied()
+        .collect();
+    changed.sort_unstable();
+    changed.dedup();
+
+    let changed_set: std::collections::HashSet<usize> = changed.iter().copied().collect();
+    changed
+        .into_iter()
+        .filter(|&line| line == 0 || !changed_set.contains(&(line - 1)))
+        .collect()
 }
 
 fn build_search_match_line_indexes(file: &DiffFileView, query: &str) -> Vec<usize> {
@@ -445,6 +487,14 @@ pub(crate) fn handle_keypress(
         }
         KeyCode::Char('N') => {
             app.jump_to_search_match(files, rows, false);
+            KeypressOutcome::default()
+        }
+        KeyCode::Char('}') => {
+            app.jump_to_hunk(files, rows, true);
+            KeypressOutcome::default()
+        }
+        KeyCode::Char('{') => {
+            app.jump_to_hunk(files, rows, false);
             KeypressOutcome::default()
         }
         KeyCode::Char('r') => {
