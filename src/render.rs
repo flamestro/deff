@@ -468,7 +468,7 @@ pub(crate) fn render_frame(
         layout.columns,
     )));
     lines.push(Line::from(fit_line(
-        "h/l: file  j/k: scroll  ctrl-u/d: page  g/G: top/bottom  /: search  n/N: next/prev match  r: reviewed  q: quit",
+        "h/l: file  j/k: scroll  ctrl-u/d: page  g/G: top/bottom  /: search  n/N: match  }/{: hunk  r: reviewed  q: quit",
         layout.columns,
     )));
     lines.push(Line::from(fit_line(
