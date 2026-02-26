@@ -1,3 +1,11 @@
+---
+name: General issue
+about: Report a bug, request a feature, or suggest docs updates
+title: "[Issue] "
+labels: []
+assignees: []
+---
+
 ## Issue type
 
 - [ ] Bug report
