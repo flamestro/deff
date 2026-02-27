@@ -37,6 +37,7 @@ fn draw_app<B: Backend>(
         app.reviewed_count(),
         app.is_current_file_reviewed(),
         app.search_status_text(),
+        app.focused_hunk_lines.as_ref(),
         size.width,
         size.height,
     );

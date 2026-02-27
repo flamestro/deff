@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use once_cell::sync::{Lazy, OnceCell};
 use ratatui::{
     style::{Color, Modifier, Style},
@@ -24,6 +26,8 @@ const PANE_SEPARATOR: &str = " | ";
 
 const COLOR_BG_DELETED: Color = Color::Rgb(48, 24, 24);
 const COLOR_BG_ADDED: Color = Color::Rgb(22, 34, 24);
+const COLOR_BG_DELETED_FOCUSED: Color = Color::Rgb(72, 32, 32);
+const COLOR_BG_ADDED_FOCUSED: Color = Color::Rgb(32, 52, 32);
 const DARK_THEME_CANDIDATES: &[&str] = &[
     "base16-ocean.dark",
     "base16-eighties.dark",
@@ -215,6 +219,7 @@ fn format_pane_line(
     line_highlight_kind: LineHighlightKind,
     horizontal_offset: usize,
     language: Option<&str>,
+    focused: bool,
 ) -> Vec<Span<'static>> {
     let line_number_text = match line_value {
         Some(_) => format!("{:>width$}", line_index + 1, width = line_number_width),
@@ -222,10 +227,12 @@ fn format_pane_line(
     };
     let prefix = format!("{line_number_text} ");
     let prefix_width = normalized_char_count(&prefix);
-    let tint_background = match line_highlight_kind {
-        LineHighlightKind::None => None,
-        LineHighlightKind::Deleted => Some(COLOR_BG_DELETED),
-        LineHighlightKind::Added => Some(COLOR_BG_ADDED),
+    let tint_background = match (line_highlight_kind, focused) {
+        (LineHighlightKind::Deleted, true) => Some(COLOR_BG_DELETED_FOCUSED),
+        (LineHighlightKind::Deleted, false) => Some(COLOR_BG_DELETED),
+        (LineHighlightKind::Added, true) => Some(COLOR_BG_ADDED_FOCUSED),
+        (LineHighlightKind::Added, false) => Some(COLOR_BG_ADDED),
+        (LineHighlightKind::None, _) => None,
     };
 
     if pane_width <= prefix_width {
@@ -329,6 +336,7 @@ pub(crate) fn render_frame(
     reviewed_count: usize,
     current_file_reviewed: bool,
     search_status_text: String,
+    focused_hunk_lines: Option<&HashSet<usize>>,
     columns: u16,
     rows: u16,
 ) -> RenderFrameOutput {
@@ -368,6 +376,10 @@ pub(crate) fn render_frame(
             LineHighlightKind::None
         };
 
+        let focused = focused_hunk_lines
+            .map(|lines| lines.contains(&line_number))
+            .unwrap_or(false);
+
         let left_rendered = format_pane_line(
             left_line,
             line_number,
@@ -376,6 +388,7 @@ pub(crate) fn render_frame(
             left_highlight_kind,
             clamped_pane_offsets.left,
             current_file.left_language.as_deref(),
+            focused,
         );
         let right_rendered = format_pane_line(
             right_line,
@@ -385,6 +398,7 @@ pub(crate) fn render_frame(
             right_highlight_kind,
             clamped_pane_offsets.right,
             current_file.right_language.as_deref(),
+            focused,
         );
 
         let mut spans = Vec::with_capacity(left_rendered.len() + right_rendered.len() + 1);
