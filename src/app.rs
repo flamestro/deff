@@ -21,6 +21,7 @@ pub(crate) struct AppState {
     pub(crate) file_index: usize,
     pub(crate) scroll_offset: usize,
     pane_offsets_by_file: Vec<PaneOffsets>,
+    hunk_anchor_by_file: Vec<Option<usize>>,
     reviewed_by_file: Vec<bool>,
     reviewed_count: usize,
     search_input_mode: bool,
@@ -47,6 +48,7 @@ impl AppState {
             file_index: 0,
             scroll_offset: 0,
             pane_offsets_by_file: vec![PaneOffsets::default(); file_count],
+            hunk_anchor_by_file: vec![None; file_count],
             reviewed_by_file,
             reviewed_count,
             search_input_mode: false,
@@ -151,47 +153,66 @@ impl AppState {
     }
 
     fn jump_to_hunk(&mut self, files: &[DiffFileView], rows: u16, forward: bool) {
+        let current_anchor = self
+            .focused_hunk_lines
+            .as_ref()
+            .and_then(|lines| {
+                if forward {
+                    lines.iter().max()
+                } else {
+                    lines.iter().min()
+                }
+            })
+            .copied()
+            .or(self.hunk_anchor_by_file[self.file_index])
+            .unwrap_or(self.scroll_offset);
         let hunk_starts = build_hunk_start_lines(&files[self.file_index]);
 
         let target = if forward {
-            hunk_starts
-                .iter()
-                .find(|&&line| line > self.scroll_offset)
+            hunk_starts.iter().find(|&&line| line > current_anchor)
         } else {
             hunk_starts
                 .iter()
                 .rev()
-                .find(|&&line| line < self.scroll_offset)
+                .find(|&&line| line < current_anchor)
         };
 
         if let Some(&line) = target {
             let max_scroll = max_scroll_for_current_file(files, self, rows);
             self.scroll_offset = line.min(max_scroll);
-            self.focused_hunk_lines =
-                Some(build_hunk_line_range(&files[self.file_index], line));
+            self.focused_hunk_lines = Some(build_hunk_line_range(&files[self.file_index], line));
+            self.hunk_anchor_by_file[self.file_index] = Some(line);
             return;
         }
 
-        // Cross-file wrap: advance to next/prev file and jump to its first/last hunk
-        let moved = if forward {
-            move_file(1, files, self)
-        } else {
-            move_file(-1, files, self)
-        };
+        // Cross-file wrap: cycle through files until we find the next/prev hunk.
+        let file_count = files.len();
+        if file_count <= 1 {
+            return;
+        }
 
-        if moved {
-            self.refresh_search_matches_for_current_file(files);
-            let new_hunk_starts = build_hunk_start_lines(&files[self.file_index]);
-            let wrap_target = if forward {
-                new_hunk_starts.first()
+        for step in 1..file_count {
+            let next_index = if forward {
+                (self.file_index + step) % file_count
             } else {
-                new_hunk_starts.last()
+                (self.file_index + file_count - step) % file_count
             };
+            let next_hunk_starts = build_hunk_start_lines(&files[next_index]);
+            let wrap_target = if forward {
+                next_hunk_starts.first()
+            } else {
+                next_hunk_starts.last()
+            };
+
             if let Some(&line) = wrap_target {
+                self.file_index = next_index;
+                self.refresh_search_matches_for_current_file(files);
                 let max_scroll = max_scroll_for_current_file(files, self, rows);
                 self.scroll_offset = line.min(max_scroll);
                 self.focused_hunk_lines =
                     Some(build_hunk_line_range(&files[self.file_index], line));
+                self.hunk_anchor_by_file[self.file_index] = Some(line);
+                return;
             }
         }
     }
@@ -244,6 +265,7 @@ fn move_file(delta: isize, files: &[DiffFileView], app: &mut AppState) -> bool {
         app.file_index = next_index;
         app.scroll_offset = 0;
         app.focused_hunk_lines = None;
+        app.hunk_anchor_by_file[app.file_index] = None;
         return true;
     }
 
@@ -252,19 +274,30 @@ fn move_file(delta: isize, files: &[DiffFileView], app: &mut AppState) -> bool {
 
 fn move_scroll(delta: isize, files: &[DiffFileView], app: &mut AppState, rows: u16) {
     let max_scroll = max_scroll_for_current_file(files, app, rows);
+    let previous_offset = app.scroll_offset;
     let next_offset = (app.scroll_offset as isize + delta).clamp(0, max_scroll as isize) as usize;
     app.scroll_offset = next_offset;
-    app.focused_hunk_lines = None;
+    if next_offset != previous_offset {
+        app.focused_hunk_lines = None;
+        app.hunk_anchor_by_file[app.file_index] = None;
+    }
 }
 
 fn scroll_to_top(app: &mut AppState) {
-    app.scroll_offset = 0;
-    app.focused_hunk_lines = None;
+    if app.scroll_offset != 0 {
+        app.scroll_offset = 0;
+        app.focused_hunk_lines = None;
+        app.hunk_anchor_by_file[app.file_index] = None;
+    }
 }
 
 fn scroll_to_bottom(files: &[DiffFileView], app: &mut AppState, rows: u16) {
-    app.scroll_offset = max_scroll_for_current_file(files, app, rows);
-    app.focused_hunk_lines = None;
+    let next_offset = max_scroll_for_current_file(files, app, rows);
+    if next_offset != app.scroll_offset {
+        app.scroll_offset = next_offset;
+        app.focused_hunk_lines = None;
+        app.hunk_anchor_by_file[app.file_index] = None;
+    }
 }
 
 fn move_horizontal(
@@ -638,7 +671,7 @@ pub(crate) fn handle_mouse(
 
 #[cfg(test)]
 mod tests {
-    use super::{AppState, build_search_match_line_indexes, next_match_index};
+    use super::{build_search_match_line_indexes, next_match_index, AppState};
     use crate::model::{DiffFileDescriptor, DiffFileView, FileContentSource, PaneOffsets};
     use std::collections::HashSet;
 
@@ -662,6 +695,18 @@ mod tests {
             left_max_content_length: 0,
             right_max_content_length: 0,
         }
+    }
+
+    fn create_test_file_with_hunks(
+        left_lines: &[&str],
+        right_lines: &[&str],
+        left_deleted: &[usize],
+        right_added: &[usize],
+    ) -> DiffFileView {
+        let mut file = create_test_file(left_lines, right_lines);
+        file.left_deleted_line_indexes = left_deleted.iter().copied().collect();
+        file.right_added_line_indexes = right_added.iter().copied().collect();
+        file
     }
 
     #[test]
@@ -692,6 +737,7 @@ mod tests {
             file_index: 1,
             scroll_offset: 0,
             pane_offsets_by_file: vec![PaneOffsets::default(), PaneOffsets::default()],
+            hunk_anchor_by_file: vec![None, None],
             reviewed_by_file: vec![false, false],
             reviewed_count: 0,
             search_input_mode: false,
@@ -708,5 +754,22 @@ mod tests {
         assert!(first);
         assert!(!second);
         assert_eq!(app.reviewed_count(), 0);
+    }
+
+    #[test]
+    fn jump_to_hunk_advances_when_file_fits_viewport() {
+        let files = vec![
+            create_test_file_with_hunks(&["a", "b", "c"], &["a", "B", "c"], &[1], &[1]),
+            create_test_file_with_hunks(&["x", "y", "z"], &["x", "Y", "z"], &[1], &[1]),
+        ];
+
+        let mut app = AppState::new(files.len(), vec![false; files.len()]);
+
+        app.jump_to_hunk(&files, 40, true);
+        assert_eq!(app.file_index, 0);
+        assert_eq!(app.scroll_offset, 0);
+
+        app.jump_to_hunk(&files, 40, true);
+        assert_eq!(app.file_index, 1);
     }
 }
