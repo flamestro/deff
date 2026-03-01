@@ -6,13 +6,21 @@ My name is deff
 
 ## Quickstart
 
-Run the installer script from this repository:
+Choose one install method:
+
+1. Install from crates.io with Cargo:
+
+```bash
+cargo install deff
+```
+
+2. Run the installer script from this repository:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/flamestro/deff/main/install.sh | bash
 ```
 
-Installer source: https://github.com/flamestro/deff/blob/main/install.sh
+Installer script source: https://github.com/flamestro/deff/blob/main/install.sh
 
 The script checks for `cargo`, clones this project into a temporary directory, installs it, and removes the temporary checkout.
 Bundled syntax grammars are compiled into the binary, so removing the checkout does not affect highlighting.
@@ -126,8 +134,9 @@ Search and reviewed workflow:
 
 This repo ships with `.github/workflows/bump-version.yml`.
 
-- Trigger: publish a GitHub release with a tag like `v0.1.0`
-- Updates `Cargo.toml`/`Cargo.lock` on the default branch using commit prefixes (`feat:` -> next minor, `chore:`/`docs:` -> next patch)
+- Trigger: push to `main` (excluding commits authored by `github-actions[bot]`)
+- Computes the next version from commit prefixes (`feat:` -> next minor, `fix:`/`chore:`/`docs:` -> next patch) and updates `Cargo.toml`/`Cargo.lock` when needed
+- Publishes new crate versions to crates.io and then creates/pushes the matching `vX.Y.Z` tag and GitHub release
 
 ## Contributing
 
