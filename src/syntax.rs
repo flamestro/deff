@@ -82,7 +82,7 @@ mod tests {
 
     use syntect::parsing::SyntaxDefinition;
 
-    use super::{load_syntax_set, BUNDLED_SYNTAXES};
+    use super::{BUNDLED_SYNTAXES, load_syntax_set};
 
     #[test]
     fn every_bundled_syntax_file_is_loaded() {
