@@ -1,0 +1,27 @@
+%YAML 1.2
+---
+name: JSX (deff)
+file_extensions:
+  - jsx
+scope: source.jsx
+contexts:
+  main:
+    - match: '//.*$'
+      scope: comment.line.double-slash.jsx
+    - match: '"[^"]*"'
+      scope: string.quoted.double.jsx
+    - match: "'[^']*'"
+      scope: string.quoted.single.jsx
+    - match: '(</?)([A-Za-z][A-Za-z0-9:_-]*)'
+      captures:
+        1: punctuation.definition.tag.begin.jsx
+        2: entity.name.tag.jsx
+    - match: '/?>'
+      scope: punctuation.definition.tag.end.jsx
+    - match: '\b(?:import|export|from|as|const|let|var|function|class|new|return|if|else|for|while|switch|case|default|try|catch|finally|throw|await|async)\b'
+      scope: keyword.control.jsx
+    - match: '\b(?:true|false|null|undefined)\b'
+      scope: constant.language.jsx
+    - match: '\b(?!if\b|for\b|while\b|switch\b|catch\b|function\b|return\b|typeof\b|new\b|delete\b|void\b|await\b|import\b|export\b|class\b)([A-Za-z_$][A-Za-z0-9_$]*)\s*(?=\()'
+      captures:
+        1: variable.function.jsx

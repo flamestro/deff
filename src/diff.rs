@@ -15,12 +15,14 @@ use crate::{
         DiffFileDescriptor, DiffFileView, FileContentSource, FileLineHighlights, ResolvedComparison,
     },
     review::compute_review_key,
+    syntax::syntax_set,
     text::get_max_normalized_line_length,
 };
 
 const MISSING_LEFT: &str = "<file does not exist in base revision>";
 const MISSING_RIGHT: &str = "<file does not exist in target revision>";
 const BINARY_PLACEHOLDER: &str = "<binary file preview not available>";
+const DOTENV_SYNTAX_NAME: &str = "Dotenv (deff)";
 
 static HUNK_HEADER_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
@@ -374,51 +376,71 @@ fn read_lines_at_working_tree(repo_root: &Path, file_path: &str) -> Vec<String> 
     }
 }
 
-fn extension_to_language(extension: &str) -> Option<&'static str> {
-    match extension {
-        "c" => Some("c"),
-        "cc" => Some("cpp"),
-        "cjs" => Some("javascript"),
-        "cpp" => Some("cpp"),
-        "css" => Some("css"),
-        "go" => Some("go"),
-        "h" => Some("c"),
-        "hpp" => Some("cpp"),
-        "htm" => Some("html"),
-        "html" => Some("html"),
-        "java" => Some("java"),
-        "js" => Some("javascript"),
-        "json" => Some("json"),
-        "jsx" => Some("jsx"),
-        "md" => Some("markdown"),
-        "mjs" => Some("javascript"),
-        "py" => Some("python"),
-        "rb" => Some("ruby"),
-        "rs" => Some("rust"),
-        "scss" => Some("scss"),
-        "sh" => Some("bash"),
-        "sql" => Some("sql"),
-        "ts" => Some("typescript"),
-        "tsx" => Some("tsx"),
-        "xml" => Some("xml"),
-        "yaml" => Some("yaml"),
-        "yml" => Some("yaml"),
-        "zsh" => Some("bash"),
-        _ => None,
-    }
+fn is_dotenv_file_name(file_name_lower: &str) -> bool {
+    file_name_lower == ".env" || file_name_lower.starts_with(".env.")
 }
 
-fn get_language_for_path(file_path: Option<&str>) -> Option<String> {
-    let file_path = file_path?;
+fn detect_syntax_name(file_path: Option<&str>, lines: &[String]) -> Option<String> {
+    let syntaxes = syntax_set();
 
-    let path = PathBuf::from(file_path);
-    let file_name = path.file_name()?.to_string_lossy().to_lowercase();
-    if file_name == "dockerfile" {
-        return Some("dockerfile".to_string());
+    if let Some(file_path) = file_path {
+        let path = PathBuf::from(file_path);
+
+        if let Some(file_name) = path.file_name().and_then(|name| name.to_str()) {
+            let file_name_lower = file_name.to_ascii_lowercase();
+
+            if is_dotenv_file_name(&file_name_lower) {
+                if let Some(syntax) = syntaxes
+                    .find_syntax_by_name(DOTENV_SYNTAX_NAME)
+                    .or_else(|| syntaxes.find_syntax_by_token("dotenv"))
+                    .or_else(|| syntaxes.find_syntax_by_extension("env"))
+                {
+                    return Some(syntax.name.clone());
+                }
+            }
+
+            if let Some(syntax) = syntaxes.find_syntax_by_token(file_name) {
+                return Some(syntax.name.clone());
+            }
+
+            if let Some(syntax) = syntaxes.find_syntax_by_token(&file_name_lower) {
+                return Some(syntax.name.clone());
+            }
+
+            if path.extension().is_none() {
+                if let Some(syntax) = syntaxes.find_syntax_by_extension(file_name) {
+                    return Some(syntax.name.clone());
+                }
+
+                if let Some(syntax) = syntaxes.find_syntax_by_extension(&file_name_lower) {
+                    return Some(syntax.name.clone());
+                }
+            }
+        }
+
+        if let Some(extension) = path.extension().and_then(|ext| ext.to_str()) {
+            if let Some(syntax) = syntaxes.find_syntax_by_extension(extension) {
+                return Some(syntax.name.clone());
+            }
+
+            let extension_lower = extension.to_ascii_lowercase();
+            if let Some(syntax) = syntaxes.find_syntax_by_extension(&extension_lower) {
+                return Some(syntax.name.clone());
+            }
+        }
     }
 
-    let extension = path.extension()?.to_string_lossy().to_lowercase();
-    extension_to_language(&extension).map(ToOwned::to_owned)
+    let first_line = lines
+        .iter()
+        .find(|line| !line.trim().is_empty())
+        .or_else(|| lines.first());
+    let Some(first_line) = first_line else {
+        return None;
+    };
+
+    syntaxes
+        .find_syntax_by_first_line(first_line)
+        .map(|syntax| syntax.name.clone())
 }
 
 pub(crate) fn build_file_views(
@@ -468,8 +490,8 @@ pub(crate) fn build_file_views(
         views.push(DiffFileView {
             descriptor: descriptor.clone(),
             review_key: compute_review_key(descriptor, &left_lines, &right_lines),
-            left_language: get_language_for_path(descriptor.base_path.as_deref()),
-            right_language: get_language_for_path(descriptor.head_path.as_deref()),
+            left_language: detect_syntax_name(descriptor.base_path.as_deref(), &left_lines),
+            right_language: detect_syntax_name(descriptor.head_path.as_deref(), &right_lines),
             left_deleted_line_indexes: line_highlights.left_deleted_line_indexes,
             right_added_line_indexes: line_highlights.right_added_line_indexes,
             left_max_content_length: get_max_normalized_line_length(&left_lines),
@@ -487,7 +509,8 @@ mod tests {
     use crate::model::FileContentSource;
 
     use super::{
-        parse_diff_name_status_output, parse_line_highlights_from_patch, split_into_lines,
+        detect_syntax_name, parse_diff_name_status_output, parse_line_highlights_from_patch,
+        split_into_lines,
     };
 
     #[test]
@@ -518,5 +541,89 @@ mod tests {
     fn split_into_lines_trims_trailing_newline() {
         let lines = split_into_lines("a\nb\n");
         assert_eq!(lines, vec!["a".to_string(), "b".to_string()]);
+    }
+
+    #[test]
+    fn detect_syntax_uses_filename_token_when_no_extension() {
+        let lines = vec!["echo hello".to_string()];
+        let detected = detect_syntax_name(Some("bash"), &lines);
+        assert_eq!(detected.as_deref(), Some("Bourne Again Shell (bash)"));
+    }
+
+    #[test]
+    fn detect_syntax_uses_extension_when_available() {
+        let lines = vec!["fn main() {}".to_string()];
+        let detected = detect_syntax_name(Some("src/main.rs"), &lines);
+        assert_eq!(detected.as_deref(), Some("Rust"));
+    }
+
+    #[test]
+    fn detect_syntax_uses_shebang_for_extensionless_files() {
+        let lines = vec!["#!/usr/bin/env bash".to_string(), "echo hello".to_string()];
+        let detected = detect_syntax_name(Some("scripts/release"), &lines);
+        assert_eq!(detected.as_deref(), Some("Bourne Again Shell (bash)"));
+    }
+
+    #[test]
+    fn detect_syntax_uses_bundled_tsx_grammar() {
+        let lines = vec!["export const App = () => <main>Hello</main>;".to_string()];
+        let detected = detect_syntax_name(Some("src/App.tsx"), &lines);
+        assert_eq!(detected.as_deref(), Some("TSX (deff)"));
+    }
+
+    #[test]
+    fn detect_syntax_uses_bundled_jsx_grammar() {
+        let lines = vec!["export default () => <main>Hello</main>;".to_string()];
+        let detected = detect_syntax_name(Some("src/App.jsx"), &lines);
+        assert_eq!(detected.as_deref(), Some("JSX (deff)"));
+    }
+
+    #[test]
+    fn detect_syntax_uses_bundled_typescript_grammar() {
+        let lines = vec!["const answer: number = 42;".to_string()];
+        let detected = detect_syntax_name(Some("src/types.ts"), &lines);
+        assert_eq!(detected.as_deref(), Some("TypeScript (deff)"));
+    }
+
+    #[test]
+    fn detect_syntax_uses_bundled_handlebars_grammar() {
+        let lines = vec!["<h1>{{title}}</h1>".to_string()];
+        let detected = detect_syntax_name(Some("templates/view.hbs"), &lines);
+        assert_eq!(detected.as_deref(), Some("Handlebars (deff)"));
+    }
+
+    #[test]
+    fn detect_syntax_uses_bundled_dotenv_grammar_for_dotenv_file() {
+        let lines = vec!["API_KEY=secret".to_string()];
+        let detected = detect_syntax_name(Some(".env"), &lines);
+        assert_eq!(detected.as_deref(), Some("Dotenv (deff)"));
+    }
+
+    #[test]
+    fn detect_syntax_uses_bundled_dotenv_grammar_for_dotenv_variant_file() {
+        let lines = vec!["NEXT_PUBLIC_URL=https://example.com".to_string()];
+        let detected = detect_syntax_name(Some("config/.env.example"), &lines);
+        assert_eq!(detected.as_deref(), Some("Dotenv (deff)"));
+    }
+
+    #[test]
+    fn detect_syntax_uses_bundled_dotenv_grammar_for_any_dotenv_suffix() {
+        let lines = vec!["NEXT_PUBLIC_URL=https://example.com".to_string()];
+        let detected = detect_syntax_name(Some("config/.env.production.local"), &lines);
+        assert_eq!(detected.as_deref(), Some("Dotenv (deff)"));
+    }
+
+    #[test]
+    fn detect_syntax_uses_bundled_kotlin_grammar() {
+        let lines = vec!["fun main() = println(\"Hello\")".to_string()];
+        let detected = detect_syntax_name(Some("src/main.kt"), &lines);
+        assert_eq!(detected.as_deref(), Some("Kotlin (deff)"));
+    }
+
+    #[test]
+    fn detect_syntax_returns_none_for_unknown_content() {
+        let lines = vec!["this should not match a known first-line rule".to_string()];
+        let detected = detect_syntax_name(Some("notes.customext"), &lines);
+        assert_eq!(detected, None);
     }
 }

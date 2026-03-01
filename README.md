@@ -107,6 +107,19 @@ Theme selection:
 - Use `--theme auto|dark|light` to control rendering for your terminal.
 - `--theme` takes precedence over `DEFF_THEME=dark|light`.
 
+Custom syntax grammars:
+
+- `deff` loads syntect defaults plus any extra `.sublime-syntax` files found in:
+  - `assets/syntaxes` (current working directory)
+  - `.deff/syntaxes` (current working directory)
+  - `DEFF_SYNTAX_DIR`
+  - `DEFF_SYNTAX_PATHS` (path list, colon-separated on macOS/Linux)
+- Example:
+
+  ```bash
+  DEFF_SYNTAX_DIR="$HOME/.config/deff/syntaxes" deff
+  ```
+
 Search and reviewed workflow:
 
 - Press `/` to enter a search query for the current file (searches both panes).

@@ -1,0 +1,54 @@
+name: PR Checks
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  title-check:
+    name: PR title check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR title prefix
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$PR_TITLE" =~ ^(fix|chore|docs|feat): ]]; then
+            echo "PR title must start with one of: fix:, chore:, docs:, feat:"
+            echo "Current title: $PR_TITLE"
+            exit 1
+          fi
+
+  checks:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    needs: title-check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: cargo fmt
+            command: cargo fmt --all -- --check
+          - name: cargo test
+            command: cargo test
+          - name: cargo build
+            command: cargo build
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run ${{ matrix.name }}
+        run: ${{ matrix.command }}

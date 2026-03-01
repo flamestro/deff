@@ -1,0 +1,57 @@
+%YAML 1.2
+---
+name: Handlebars (deff)
+file_extensions:
+  - hbs
+  - handlebars
+scope: text.html.handlebars
+contexts:
+  main:
+    - include: html-tags
+    - include: html-attributes
+    - include: html-strings
+    - include: handlebars-tags
+
+  handlebars-tags:
+    - match: '{{!--.*?--}}'
+      scope: comment.block.handlebars
+    - match: '{{!.*?}}'
+      scope: comment.line.handlebars
+    - match: '(\{\{\{)([#/^>]?\s*)([A-Za-z_][A-Za-z0-9_.-]*)'
+      captures:
+        1: punctuation.section.embedded.handlebars
+        2: keyword.control.handlebars
+        3: keyword.control.handlebars
+    - match: '(\{\{)([#/^>]?\s*)([A-Za-z_][A-Za-z0-9_.-]*)'
+      captures:
+        1: punctuation.section.embedded.handlebars
+        2: keyword.control.handlebars
+        3: keyword.control.handlebars
+    - match: '}}}'
+      scope: punctuation.section.embedded.handlebars
+    - match: '}}'
+      scope: punctuation.section.embedded.handlebars
+    - match: '{{{'
+      scope: punctuation.section.embedded.handlebars
+    - match: '{{'
+      scope: punctuation.section.embedded.handlebars
+
+  html-tags:
+    - match: '(</?)([A-Za-z][A-Za-z0-9:_-]*)'
+      captures:
+        1: punctuation.definition.tag.begin.html
+        2: entity.name.tag.html
+    - match: '/?>'
+      scope: punctuation.definition.tag.end.html
+
+  html-attributes:
+    - match: '\b([A-Za-z_:][-A-Za-z0-9_:.]*)(=)'
+      captures:
+        1: entity.other.attribute-name.html
+        2: punctuation.separator.key-value.html
+
+  html-strings:
+    - match: '"[^"]*"'
+      scope: string.quoted.double.html
+    - match: "'[^']*'"
+      scope: string.quoted.single.html

@@ -1,0 +1,21 @@
+%YAML 1.2
+---
+name: Kotlin (deff)
+file_extensions:
+  - kt
+  - kts
+scope: source.kotlin
+contexts:
+  main:
+    - match: '//.*$'
+      scope: comment.line.double-slash.kotlin
+    - match: '"[^"]*"'
+      scope: string.quoted.double.kotlin
+    - match: "'[^']*'"
+      scope: string.quoted.single.kotlin
+    - match: '\b(?:package|import|class|interface|object|fun|val|var|when|is|in|if|else|for|while|return|try|catch|finally|throw)\b'
+      scope: keyword.control.kotlin
+    - match: '\b(?:Int|Long|Float|Double|Boolean|String|Unit|Any|Nothing)\b'
+      scope: storage.type.kotlin
+    - match: '\b(?:true|false|null)\b'
+      scope: constant.language.kotlin
