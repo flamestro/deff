@@ -5,6 +5,7 @@ mod git;
 mod model;
 mod render;
 mod review;
+mod syntax;
 mod terminal;
 mod text;
 

@@ -671,7 +671,7 @@ pub(crate) fn handle_mouse(
 
 #[cfg(test)]
 mod tests {
-    use super::{build_search_match_line_indexes, next_match_index, AppState};
+    use super::{AppState, build_search_match_line_indexes, next_match_index};
     use crate::model::{DiffFileDescriptor, DiffFileView, FileContentSource, PaneOffsets};
     use std::collections::HashSet;
 

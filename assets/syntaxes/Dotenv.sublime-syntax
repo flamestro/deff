@@ -1,0 +1,22 @@
+%YAML 1.2
+---
+name: Dotenv (deff)
+file_extensions:
+  - env
+scope: source.dotenv
+contexts:
+  main:
+    - match: '^\s*#.*$'
+      scope: comment.line.number-sign.dotenv
+    - match: '^\s*(export)\b'
+      scope: keyword.control.dotenv
+    - match: '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*(=)'
+      captures:
+        1: variable.other.constant.dotenv
+        2: keyword.operator.assignment.dotenv
+    - match: '"(?:[^"\\]|\\.)*"'
+      scope: string.quoted.double.dotenv
+    - match: "'[^']*'"
+      scope: string.quoted.single.dotenv
+    - match: '\$\{?[A-Za-z_][A-Za-z0-9_]*\}?'
+      scope: variable.other.readwrite.dotenv

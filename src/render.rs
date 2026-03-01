@@ -8,13 +8,14 @@ use ratatui::{
 use syntect::{
     easy::HighlightLines,
     highlighting::{FontStyle, Theme, ThemeSet},
-    parsing::{SyntaxReference, SyntaxSet},
+    parsing::SyntaxReference,
 };
 
 use crate::{
     model::{
         DiffFileView, LineHighlightKind, PaneOffsets, PaneSide, ResolvedComparison, ThemeMode,
     },
+    syntax::syntax_set,
     text::{fit_line, normalize_content, normalized_char_count, pad_to_width, slice_chars},
 };
 
@@ -37,7 +38,6 @@ const DARK_THEME_CANDIDATES: &[&str] = &[
 const LIGHT_THEME_CANDIDATES: &[&str] =
     &["InspiredGitHub", "Solarized (light)", "base16-ocean.light"];
 
-static SYNTAX_SET: Lazy<SyntaxSet> = Lazy::new(SyntaxSet::load_defaults_newlines);
 static THEME_SET: Lazy<ThemeSet> = Lazy::new(ThemeSet::load_defaults);
 static THEME_MODE_OVERRIDE: OnceCell<ThemeMode> = OnceCell::new();
 static THEME: Lazy<Theme> = Lazy::new(|| {
@@ -131,9 +131,12 @@ fn should_prefer_dark_theme() -> bool {
 }
 
 fn syntax_for_language(language: &str) -> Option<&'static SyntaxReference> {
-    SYNTAX_SET
-        .find_syntax_by_token(language)
-        .or_else(|| SYNTAX_SET.find_syntax_by_extension(language))
+    let syntaxes = syntax_set();
+
+    syntaxes
+        .find_syntax_by_name(language)
+        .or_else(|| syntaxes.find_syntax_by_token(language))
+        .or_else(|| syntaxes.find_syntax_by_extension(language))
 }
 
 fn base_style(tint_background: Option<Color>) -> Style {
@@ -190,8 +193,9 @@ fn highlight_visible_content(
         return default_span();
     };
 
+    let syntaxes = syntax_set();
     let mut highlighter = HighlightLines::new(syntax, &THEME);
-    let highlighted = match highlighter.highlight_line(value, &SYNTAX_SET) {
+    let highlighted = match highlighter.highlight_line(value, syntaxes) {
         Ok(ranges) => ranges,
         Err(_) => return default_span(),
     };

@@ -1,0 +1,96 @@
+%YAML 1.2
+---
+name: TypeScript (deff)
+file_extensions:
+  - ts
+scope: source.ts
+contexts:
+  main:
+    - include: comments
+    - include: strings
+    - include: function-definitions
+    - include: keywords
+    - include: types
+    - include: literals
+    - include: function-calls
+
+  comments:
+    - match: '//.*$'
+      scope: comment.line.double-slash.ts
+    - match: '/\*'
+      scope: punctuation.definition.comment.begin.ts
+      push:
+        - meta_scope: comment.block.ts
+        - match: '\*/'
+          scope: punctuation.definition.comment.end.ts
+          pop: true
+
+  strings:
+    - match: '`(?:[^`\\]|\\.)*`'
+      scope: string.quoted.template.ts
+    - match: '"[^"]*"'
+      scope: string.quoted.double.ts
+    - match: "'[^']*'"
+      scope: string.quoted.single.ts
+
+  function-definitions:
+    - match: '\b(async)\s+(function)\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*(\()'
+      captures:
+        1: keyword.control.ts
+        2: keyword.control.ts
+        3: entity.name.function.ts
+        4: punctuation.section.parameters.begin.ts
+      push: function-parameters
+    - match: '\b(function)\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*(\()'
+      captures:
+        1: keyword.control.ts
+        2: entity.name.function.ts
+        3: punctuation.section.parameters.begin.ts
+      push: function-parameters
+    - match: '\b(?:const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*(?:async\s*)?(?:<[^>]+>\s*)?(\()'
+      captures:
+        1: entity.name.function.ts
+        2: punctuation.section.parameters.begin.ts
+      push: function-parameters
+    - match: '\b(?:const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*(?:async\s*)?([A-Za-z_$][A-Za-z0-9_$]*)\s*(=>)'
+      captures:
+        1: entity.name.function.ts
+        2: variable.parameter.ts
+        3: keyword.operator.arrow.ts
+
+  function-parameters:
+    - meta_scope: meta.parameters.ts
+    - include: comments
+    - include: strings
+    - match: '(\.\.\.)?([A-Za-z_$][A-Za-z0-9_$]*)(\??)(?=\s*(?::|,|\)|=))'
+      captures:
+        1: keyword.operator.spread.ts
+        2: variable.parameter.ts
+        3: keyword.operator.optional.ts
+    - match: '\b([A-Za-z_$][A-Za-z0-9_$]*)\b(?=\s*(?:,|}|=))'
+      captures:
+        1: variable.parameter.ts
+    - match: ':'
+      scope: punctuation.separator.type.ts
+    - match: ','
+      scope: punctuation.separator.comma.ts
+    - match: '\)'
+      scope: punctuation.section.parameters.end.ts
+      pop: true
+
+  keywords:
+    - match: '\b(?:import|export|from|as|const|let|var|function|class|interface|type|extends|implements|new|return|if|else|for|while|switch|case|default|try|catch|finally|throw|await|async)\b'
+      scope: keyword.control.ts
+
+  types:
+    - match: '\b(?:string|number|boolean|void|unknown|never|any)\b'
+      scope: storage.type.ts
+
+  literals:
+    - match: '\b(?:true|false|null|undefined)\b'
+      scope: constant.language.ts
+
+  function-calls:
+    - match: '\b(?!if\b|for\b|while\b|switch\b|catch\b|function\b|return\b|typeof\b|new\b|delete\b|void\b|await\b|import\b|export\b|class\b)([A-Za-z_$][A-Za-z0-9_$]*)\s*(?=\()'
+      captures:
+        1: variable.function.ts

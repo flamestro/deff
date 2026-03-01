@@ -1,27 +1,27 @@
-name: Bump Cargo Version
+name: Release on Main
 
 on:
-  release:
-    types:
-      - published
+  push:
+    branches:
+      - main
 
 permissions:
   contents: write
 
 concurrency:
-  group: bump-version-${{ github.event.release.tag_name }}
+  group: release-main
   cancel-in-progress: false
 
 jobs:
-  bump-version:
-    name: Bump Cargo.toml for next release
+  release:
+    name: Bump version and create release
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout default branch
+      - name: Checkout main branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.repository.default_branch }}
           fetch-depth: 0
           fetch-tags: true
 
@@ -33,17 +33,19 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Determine bump level and next version
+      - name: Determine release version
         id: version
-        env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           python - <<'PY'
           import os
           import re
           import subprocess
+          import tomllib
+          from pathlib import Path
 
+          SEMVER_RE = re.compile(r"(\d+)\.(\d+)\.(\d+)")
           SEMVER_TAG_RE = re.compile(r"v(\d+)\.(\d+)\.(\d+)")
+          TYPE_PREFIX_RE = re.compile(r"^(?P<type>feat|fix|chore|docs)(?:\([^)]+\))?!?:", re.IGNORECASE)
 
 
           def git_lines(*args: str) -> list[str]:
@@ -59,12 +61,15 @@ jobs:
               return [line.strip() for line in output.splitlines() if line.strip()]
 
 
-          release_tag = os.environ["RELEASE_TAG"].strip()
-          match = SEMVER_TAG_RE.fullmatch(release_tag)
-          if not match:
-              raise SystemExit(f"Release tag '{release_tag}' is not in vMAJOR.MINOR.PATCH format")
+          def parse_semver(value: str) -> tuple[int, int, int]:
+              match = SEMVER_RE.fullmatch(value.strip())
+              if not match:
+                  raise ValueError(f"Invalid semver: {value}")
+              return tuple(map(int, match.groups()))
 
-          release_version = tuple(map(int, match.groups()))
+
+          latest_tag = ""
+          latest_tag_semver = (0, 0, 0)
 
           tag_versions = []
           for existing_tag in git_lines("tag", "--list", "v*"):
@@ -72,56 +77,70 @@ jobs:
               if tag_match:
                   tag_versions.append((tuple(map(int, tag_match.groups())), existing_tag))
 
-          if not any(existing_tag == release_tag for _, existing_tag in tag_versions):
-              tag_versions.append((release_version, release_tag))
+          if tag_versions:
+              tag_versions.sort()
+              latest_tag_semver, latest_tag = tag_versions[-1]
 
-          tag_versions.sort()
-          previous_tag = ""
-          for version, existing_tag in tag_versions:
-              if version < release_version:
-                  previous_tag = existing_tag
-              elif version == release_version and existing_tag == release_tag:
-                  break
-
-          if previous_tag:
-              commit_range = f"{previous_tag}..{release_tag}"
-          else:
-              commit_range = release_tag
-
+          commit_range = f"{latest_tag}..HEAD" if latest_tag else "HEAD"
           subjects = git_lines("log", "--format=%s", commit_range)
 
-          type_prefix = re.compile(r"^(?P<type>[a-z]+)(?:\([^)]+\))?!?:")
           bump_level = "patch"
           for subject in subjects:
-              prefix_match = type_prefix.match(subject.lower())
+              prefix_match = TYPE_PREFIX_RE.match(subject)
               if not prefix_match:
                   continue
-              commit_type = prefix_match.group("type")
+
+              commit_type = prefix_match.group("type").lower()
               if commit_type == "feat":
                   bump_level = "minor"
                   break
-              if commit_type in {"chore", "docs"}:
+
+              if commit_type in {"fix", "chore", "docs"}:
                   bump_level = "patch"
 
-          major, minor, patch = release_version
+          major, minor, patch = latest_tag_semver
           if bump_level == "minor":
-              next_version = f"{major}.{minor + 1}.0"
+              calculated_version = f"{major}.{minor + 1}.0"
           else:
-              next_version = f"{major}.{minor}.{patch + 1}"
+              calculated_version = f"{major}.{minor}.{patch + 1}"
 
+          cargo_toml_path = Path("Cargo.toml")
+          cargo_toml_text = cargo_toml_path.read_text(encoding="utf-8")
+          current_version = tomllib.loads(cargo_toml_text)["package"]["version"]
+
+          current_semver = parse_semver(current_version)
+          calculated_semver = parse_semver(calculated_version)
+
+          if current_semver >= calculated_semver:
+              release_version = current_version
+          else:
+              release_version = calculated_version
+
+          release_semver = parse_semver(release_version)
+          update_needed = current_semver < release_semver
+          release_tag = f"v{release_version}"
+
+          print(f"Latest semver tag: {latest_tag or '<none>'}")
           print(f"Analyzed {len(subjects)} commit message(s) in '{commit_range}'")
           print(f"Selected bump level: {bump_level}")
-          print(f"Next version: {next_version}")
+          print(f"Calculated version: {calculated_version}")
+          print(f"Cargo.toml version: {current_version}")
+          print(f"Release version: {release_version}")
+          print(f"Will update Cargo files: {update_needed}")
 
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"bump_level={bump_level}\n")
-              output.write(f"next_version={next_version}\n")
+              output.write(f"latest_tag={latest_tag}\n")
               output.write(f"commit_range={commit_range}\n")
+              output.write(f"bump_level={bump_level}\n")
+              output.write(f"release_version={release_version}\n")
+              output.write(f"release_tag={release_tag}\n")
+              output.write(f"update_needed={'true' if update_needed else 'false'}\n")
           PY
 
       - name: Update project version files
+        if: steps.version.outputs.update_needed == 'true'
         env:
-          NEXT_VERSION: ${{ steps.version.outputs.next_version }}
+          RELEASE_VERSION: ${{ steps.version.outputs.release_version }}
         run: |
           python - <<'PY'
           import os
@@ -129,14 +148,16 @@ jobs:
           import tomllib
           from pathlib import Path
 
+
           def parse_semver(value: str) -> tuple[int, int, int]:
               match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", value.strip())
               if not match:
                   raise ValueError(value)
               return tuple(map(int, match.groups()))
 
-          next_version = os.environ["NEXT_VERSION"]
-          next_semver = parse_semver(next_version)
+
+          release_version = os.environ["RELEASE_VERSION"]
+          release_semver = parse_semver(release_version)
 
           cargo_toml_path = Path("Cargo.toml")
           cargo_toml_text = cargo_toml_path.read_text(encoding="utf-8")
@@ -144,7 +165,7 @@ jobs:
           package_name = package["name"]
           current_version = package["version"]
 
-          if parse_semver(current_version) >= next_semver:
+          if parse_semver(current_version) >= release_semver:
               print(f"Cargo.toml already at {current_version}; no bump needed")
               raise SystemExit(0)
 
@@ -160,7 +181,7 @@ jobs:
 
               if in_package and stripped.startswith("version"):
                   indent = line[: len(line) - len(line.lstrip())]
-                  lines[index] = f'{indent}version = "{next_version}"'
+                  lines[index] = f'{indent}version = "{release_version}"'
                   updated_toml = True
                   break
 
@@ -189,7 +210,7 @@ jobs:
                       continue
 
                   if in_package_block and matches_name and stripped.startswith("version = "):
-                      lock_lines[index] = f'version = "{next_version}"'
+                      lock_lines[index] = f'version = "{release_version}"'
                       updated_lock = True
                       break
 
@@ -198,11 +219,10 @@ jobs:
           PY
 
       - name: Commit and push version bump
+        if: steps.version.outputs.update_needed == 'true'
         env:
-          NEXT_VERSION: ${{ steps.version.outputs.next_version }}
+          RELEASE_VERSION: ${{ steps.version.outputs.release_version }}
           BUMP_LEVEL: ${{ steps.version.outputs.bump_level }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
 
@@ -217,5 +237,33 @@ jobs:
           fi
 
           git add "${paths[@]}"
-          git commit -m "chore: bump version to ${NEXT_VERSION} (${BUMP_LEVEL}) after ${RELEASE_TAG}"
-          git push origin "HEAD:${DEFAULT_BRANCH}"
+          git commit -m "chore: bump version to ${RELEASE_VERSION} (${BUMP_LEVEL}) [skip release]"
+          git push origin "HEAD:main"
+
+      - name: Create and push release tag
+        env:
+          RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
+            echo "Tag ${RELEASE_TAG} already exists on origin"
+            exit 0
+          fi
+
+          git tag -a "${RELEASE_TAG}" -m "Release ${RELEASE_TAG}"
+          git push origin "${RELEASE_TAG}"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            echo "Release ${RELEASE_TAG} already exists"
+            exit 0
+          fi
+
+          gh release create "${RELEASE_TAG}" --title "${RELEASE_TAG}" --generate-notes

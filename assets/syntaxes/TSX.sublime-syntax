@@ -1,0 +1,105 @@
+%YAML 1.2
+---
+name: TSX (deff)
+file_extensions:
+  - tsx
+scope: source.tsx
+contexts:
+  main:
+    - include: comments
+    - include: strings
+    - include: jsx-tags
+    - include: function-definitions
+    - include: keywords
+    - include: types
+    - include: literals
+    - include: function-calls
+
+  comments:
+    - match: '//.*$'
+      scope: comment.line.double-slash.tsx
+    - match: '/\*'
+      scope: punctuation.definition.comment.begin.tsx
+      push:
+        - meta_scope: comment.block.tsx
+        - match: '\*/'
+          scope: punctuation.definition.comment.end.tsx
+          pop: true
+
+  strings:
+    - match: '`(?:[^`\\]|\\.)*`'
+      scope: string.quoted.template.tsx
+    - match: '"[^"]*"'
+      scope: string.quoted.double.tsx
+    - match: "'[^']*'"
+      scope: string.quoted.single.tsx
+
+  jsx-tags:
+    - match: '(</?)([A-Za-z][A-Za-z0-9:_-]*)'
+      captures:
+        1: punctuation.definition.tag.begin.tsx
+        2: entity.name.tag.tsx
+    - match: '/?>'
+      scope: punctuation.definition.tag.end.tsx
+
+  function-definitions:
+    - match: '\b(async)\s+(function)\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*(\()'
+      captures:
+        1: keyword.control.tsx
+        2: keyword.control.tsx
+        3: entity.name.function.tsx
+        4: punctuation.section.parameters.begin.tsx
+      push: function-parameters
+    - match: '\b(function)\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*(\()'
+      captures:
+        1: keyword.control.tsx
+        2: entity.name.function.tsx
+        3: punctuation.section.parameters.begin.tsx
+      push: function-parameters
+    - match: '\b(?:const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*(?:async\s*)?(?:<[^>]+>\s*)?(\()'
+      captures:
+        1: entity.name.function.tsx
+        2: punctuation.section.parameters.begin.tsx
+      push: function-parameters
+    - match: '\b(?:const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*(?:async\s*)?([A-Za-z_$][A-Za-z0-9_$]*)\s*(=>)'
+      captures:
+        1: entity.name.function.tsx
+        2: variable.parameter.tsx
+        3: keyword.operator.arrow.tsx
+
+  function-parameters:
+    - meta_scope: meta.parameters.tsx
+    - include: comments
+    - include: strings
+    - match: '(\.\.\.)?([A-Za-z_$][A-Za-z0-9_$]*)(\??)(?=\s*(?::|,|\)|=))'
+      captures:
+        1: keyword.operator.spread.tsx
+        2: variable.parameter.tsx
+        3: keyword.operator.optional.tsx
+    - match: '\b([A-Za-z_$][A-Za-z0-9_$]*)\b(?=\s*(?:,|}|=))'
+      captures:
+        1: variable.parameter.tsx
+    - match: ':'
+      scope: punctuation.separator.type.tsx
+    - match: ','
+      scope: punctuation.separator.comma.tsx
+    - match: '\)'
+      scope: punctuation.section.parameters.end.tsx
+      pop: true
+
+  keywords:
+    - match: '\b(?:import|export|from|as|const|let|var|function|class|interface|type|extends|implements|new|return|if|else|for|while|switch|case|default|try|catch|finally|throw|await|async)\b'
+      scope: keyword.control.tsx
+
+  types:
+    - match: '\b(?:string|number|boolean|void|unknown|never|any)\b'
+      scope: storage.type.tsx
+
+  literals:
+    - match: '\b(?:true|false|null|undefined)\b'
+      scope: constant.language.tsx
+
+  function-calls:
+    - match: '\b(?!if\b|for\b|while\b|switch\b|catch\b|function\b|return\b|typeof\b|new\b|delete\b|void\b|await\b|import\b|export\b|class\b)([A-Za-z_$][A-Za-z0-9_$]*)\s*(?=\()'
+      captures:
+        1: variable.function.tsx
