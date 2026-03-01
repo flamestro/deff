@@ -15,6 +15,7 @@ curl -fsSL https://raw.githubusercontent.com/flamestro/deff/main/install.sh | ba
 Installer source: https://github.com/flamestro/deff/blob/main/install.sh
 
 The script checks for `cargo`, clones this project into a temporary directory, installs it, and removes the temporary checkout.
+Bundled syntax grammars are compiled into the binary, so removing the checkout does not affect highlighting.
 
 If you have local edits (including untracked files) and want to review them before committing, run:
 
@@ -109,16 +110,10 @@ Theme selection:
 
 Custom syntax grammars:
 
-- `deff` loads syntect defaults plus any extra `.sublime-syntax` files found in:
+- `deff` loads syntect defaults, bundled deff grammars, plus any extra `.sublime-syntax` files found in:
   - `assets/syntaxes` (current working directory)
   - `.deff/syntaxes` (current working directory)
-  - `DEFF_SYNTAX_DIR`
-  - `DEFF_SYNTAX_PATHS` (path list, colon-separated on macOS/Linux)
-- Example:
-
-  ```bash
-  DEFF_SYNTAX_DIR="$HOME/.config/deff/syntaxes" deff
-  ```
+- Any `*.sublime-syntax` file added under this repo's `assets/syntaxes` is auto-bundled at build time.
 
 Search and reviewed workflow:
 

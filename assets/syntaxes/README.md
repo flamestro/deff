@@ -1,12 +1,12 @@
-This directory contains extra `.sublime-syntax` grammars loaded by deff at startup.
+These `.sublime-syntax` grammars are bundled into the deff binary at compile time.
 
-You can add more grammar files here to extend language coverage further.
+Any `*.sublime-syntax` file added here is automatically bundled; no manual `src/syntax.rs` update is required.
+
+You can also add more grammar files here (or in the locations below) to extend language coverage further.
 
 deff loads custom syntaxes from these locations (if present):
 
 - `assets/syntaxes` (relative to the current working directory)
 - `.deff/syntaxes` (relative to the current working directory)
-- `DEFF_SYNTAX_DIR`
-- `DEFF_SYNTAX_PATHS` (OS path list, e.g. colon-separated on macOS/Linux)
 
 Syntactic detection still uses syntect APIs first, then first-line/shebang fallback.

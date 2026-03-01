@@ -4,11 +4,11 @@ use std::{
 };
 
 use once_cell::sync::Lazy;
-use syntect::parsing::SyntaxSet;
+use syntect::parsing::{SyntaxDefinition, SyntaxSet, SyntaxSetBuilder};
 
 const DEFAULT_RELATIVE_SYNTAX_DIRS: &[&str] = &["assets/syntaxes", ".deff/syntaxes"];
-const ENV_SYNTAX_DIR: &str = "DEFF_SYNTAX_DIR";
-const ENV_SYNTAX_PATHS: &str = "DEFF_SYNTAX_PATHS";
+
+include!(concat!(env!("OUT_DIR"), "/bundled_syntaxes.rs"));
 
 static SYNTAX_SET: Lazy<SyntaxSet> = Lazy::new(load_syntax_set);
 
@@ -18,6 +18,7 @@ pub(crate) fn syntax_set() -> &'static SyntaxSet {
 
 fn load_syntax_set() -> SyntaxSet {
     let mut builder = SyntaxSet::load_defaults_newlines().into_builder();
+    add_bundled_syntaxes(&mut builder);
 
     for directory in syntax_directories() {
         if let Err(error) = builder.add_from_folder(&directory, true) {
@@ -31,18 +32,24 @@ fn load_syntax_set() -> SyntaxSet {
     builder.build()
 }
 
+fn add_bundled_syntaxes(builder: &mut SyntaxSetBuilder) {
+    for (file_name, source) in BUNDLED_SYNTAXES {
+        let fallback_name = Path::new(file_name)
+            .file_stem()
+            .and_then(|stem| stem.to_str());
+
+        match SyntaxDefinition::load_from_str(source, true, fallback_name) {
+            Ok(definition) => builder.add(definition),
+            Err(error) => {
+                eprintln!("deff: failed to load bundled syntax {}: {error}", file_name);
+            }
+        }
+    }
+}
+
 fn syntax_directories() -> Vec<PathBuf> {
     let mut candidates = Vec::new();
-    candidates.push(Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/syntaxes"));
     candidates.extend(DEFAULT_RELATIVE_SYNTAX_DIRS.iter().map(PathBuf::from));
-
-    if let Some(value) = std::env::var_os(ENV_SYNTAX_PATHS) {
-        candidates.extend(std::env::split_paths(&value));
-    }
-
-    if let Some(value) = std::env::var_os(ENV_SYNTAX_DIR) {
-        candidates.push(PathBuf::from(value));
-    }
 
     let cwd = std::env::current_dir().ok();
     let mut unique = HashSet::new();
@@ -67,4 +74,34 @@ fn syntax_directories() -> Vec<PathBuf> {
     }
 
     resolved
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use syntect::parsing::SyntaxDefinition;
+
+    use super::{BUNDLED_SYNTAXES, load_syntax_set};
+
+    #[test]
+    fn every_bundled_syntax_file_is_loaded() {
+        let syntaxes = load_syntax_set();
+
+        for (file_name, source) in BUNDLED_SYNTAXES {
+            let fallback_name = Path::new(file_name)
+                .file_stem()
+                .and_then(|stem| stem.to_str());
+            let definition = SyntaxDefinition::load_from_str(source, true, fallback_name)
+                .unwrap_or_else(|error| {
+                    panic!("failed to parse bundled syntax {file_name}: {error}")
+                });
+
+            assert!(
+                syntaxes.find_syntax_by_name(&definition.name).is_some(),
+                "expected bundled syntax {} from {file_name}",
+                definition.name
+            );
+        }
+    }
 }
