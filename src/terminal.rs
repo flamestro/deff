@@ -144,15 +144,12 @@ pub(crate) fn start_interactive_review(
         Show,
         DisableMouseCapture,
         LeaveAlternateScreen
-    ) {
-        if restore_error.is_none() {
-            restore_error = Some(error.into());
-        }
+    ) && restore_error.is_none() {
+        restore_error = Some(error.into());
     }
-    if let Err(error) = terminal.show_cursor() {
-        if restore_error.is_none() {
-            restore_error = Some(error.into());
-        }
+    if let Err(error) = terminal.show_cursor()
+        && restore_error.is_none() {
+        restore_error = Some(error.into());
     }
 
     if let Some(error) = restore_error {
