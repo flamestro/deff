@@ -389,14 +389,13 @@ fn detect_syntax_name(file_path: Option<&str>, lines: &[String]) -> Option<Strin
         if let Some(file_name) = path.file_name().and_then(|name| name.to_str()) {
             let file_name_lower = file_name.to_ascii_lowercase();
 
-            if is_dotenv_file_name(&file_name_lower) {
-                if let Some(syntax) = syntaxes
+            if is_dotenv_file_name(&file_name_lower)
+                && let Some(syntax) = syntaxes
                     .find_syntax_by_name(DOTENV_SYNTAX_NAME)
                     .or_else(|| syntaxes.find_syntax_by_token("dotenv"))
                     .or_else(|| syntaxes.find_syntax_by_extension("env"))
-                {
-                    return Some(syntax.name.clone());
-                }
+            {
+                return Some(syntax.name.clone());
             }
 
             if let Some(syntax) = syntaxes.find_syntax_by_token(file_name) {
@@ -433,10 +432,7 @@ fn detect_syntax_name(file_path: Option<&str>, lines: &[String]) -> Option<Strin
     let first_line = lines
         .iter()
         .find(|line| !line.trim().is_empty())
-        .or_else(|| lines.first());
-    let Some(first_line) = first_line else {
-        return None;
-    };
+        .or_else(|| lines.first())?;
 
     syntaxes
         .find_syntax_by_first_line(first_line)

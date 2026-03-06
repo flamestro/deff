@@ -118,7 +118,7 @@ fn should_prefer_dark_theme() -> bool {
 
     if let Ok(value) = std::env::var("COLORFGBG") {
         let background_index = value
-            .split(|ch| ch == ';' || ch == ':')
+            .split([';', ':'])
             .next_back()
             .and_then(parse_terminal_palette_index);
 
@@ -215,6 +215,7 @@ fn highlight_visible_content(
         .collect()
 }
 
+#[allow(clippy::too_many_arguments)]
 fn format_pane_line(
     line_value: Option<&str>,
     line_index: usize,
@@ -331,6 +332,7 @@ pub(crate) fn get_pane_for_column(column: usize, layout: &FrameLayout) -> Option
     None
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn render_frame(
     files: &[DiffFileView],
     comparison: &ResolvedComparison,
