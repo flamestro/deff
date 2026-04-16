@@ -28,7 +28,7 @@ Bundled syntax grammars are compiled into the binary, so removing the checkout d
 If you have local edits (including untracked files) and want to review them before committing, run:
 
 ```bash
-deff --include-uncommitted
+deff --only-uncommitted
 ```
 
 This opens the side-by-side review so you can check exactly what changed in your working tree.
@@ -38,6 +38,7 @@ This opens the side-by-side review so you can check exactly what changed in your
 - `upstream-ahead` strategy (default) to compare local branch changes against its upstream
 - `range` strategy for explicit `--base` / `--head` comparison
 - Optional `--include-uncommitted` mode to include working tree and untracked files
+- `--only-uncommitted` mode to compare working tree and untracked files against `HEAD`
 - Side-by-side panes with independent horizontal scroll offsets
 - Keyboard and mouse navigation (including wheel + shift-wheel)
 - Vim-like motion navigation (`h`/`j`/`k`/`l`, `g`/`G`, `Ctrl+u`/`Ctrl+d`)
@@ -62,6 +63,7 @@ deff
 deff --strategy upstream-ahead
 deff --strategy range --base origin/main --head HEAD
 deff --strategy range --base origin/main --include-uncommitted
+deff --only-uncommitted
 deff --theme dark
 ```
 
@@ -104,9 +106,12 @@ Prerequisites:
    # explicit range
    deff --base origin/main --head HEAD
 
-   # include uncommitted + untracked files
-   deff --base origin/main --include-uncommitted
-   ```
+    # include uncommitted + untracked files
+    deff --base origin/main --include-uncommitted
+
+    # compare only working tree + untracked files against HEAD
+    deff --only-uncommitted
+    ```
 
 If your branch has no upstream configured, use the explicit `--base` flow.
 

@@ -27,6 +27,7 @@ pub(crate) enum StrategyArg {
 pub(crate) enum StrategyId {
     UpstreamAhead,
     Range,
+    OnlyUncommitted,
 }
 
 impl Display for StrategyId {
@@ -34,6 +35,7 @@ impl Display for StrategyId {
         match self {
             StrategyId::UpstreamAhead => write!(f, "upstream-ahead"),
             StrategyId::Range => write!(f, "range"),
+            StrategyId::OnlyUncommitted => write!(f, "only-uncommitted"),
         }
     }
 }
