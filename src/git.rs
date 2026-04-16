@@ -171,10 +171,38 @@ fn resolve_range_comparison(
     })
 }
 
+fn resolve_only_uncommitted_comparison(repo_root: &Path) -> Result<ResolvedComparison> {
+    let current_branch = run_git_text(["rev-parse", "--abbrev-ref", "HEAD"], repo_root)?
+        .trim()
+        .to_string();
+    let head_commit = run_git_text(["rev-parse", "HEAD^{commit}"], repo_root)?
+        .trim()
+        .to_string();
+
+    Ok(ResolvedComparison {
+        strategy_id: StrategyId::OnlyUncommitted,
+        base_ref: current_branch.clone(),
+        head_ref: current_branch.clone(),
+        base_commit: head_commit.clone(),
+        head_commit,
+        summary: format!("{current_branch}..WORKTREE"),
+        details: vec![
+            format!("branch: {current_branch}"),
+            "mode: only-uncommitted".to_string(),
+        ],
+        ahead_count: None,
+        includes_uncommitted: true,
+    })
+}
+
 pub(crate) fn resolve_comparison(
     repo_root: &Path,
     options: &CliOptions,
 ) -> Result<ResolvedComparison> {
+    if options.only_uncommitted {
+        return resolve_only_uncommitted_comparison(repo_root);
+    }
+
     match options.strategy_id {
         StrategyId::Range => {
             let base_ref = options
@@ -186,5 +214,6 @@ pub(crate) fn resolve_comparison(
         StrategyId::UpstreamAhead => {
             resolve_upstream_ahead_comparison(repo_root, &options.head_ref)
         }
+        StrategyId::OnlyUncommitted => resolve_only_uncommitted_comparison(repo_root),
     }
 }
