@@ -1,5 +1,6 @@
 mod app;
 mod cli;
+mod config;
 mod diff;
 mod git;
 mod model;
@@ -13,6 +14,7 @@ use anyhow::{Context, Result};
 
 use crate::{
     cli::parse_cli_options,
+    config::KeyBindings,
     diff::{build_file_views, get_diff_file_descriptors},
     git::{get_repository_root, resolve_comparison},
     model::{ResolvedComparison, StrategyId},
@@ -24,6 +26,7 @@ use crate::{
 pub fn run() -> Result<()> {
     let options = parse_cli_options()?;
     set_theme_mode_override(options.theme_mode);
+    let keybindings = KeyBindings::load(options.config_path.as_deref(), options.no_config)?;
 
     let current_directory = std::env::current_dir().context("failed to read current directory")?;
     let repository_root = get_repository_root(&current_directory)?;
@@ -58,5 +61,5 @@ pub fn run() -> Result<()> {
 
     let file_views = build_file_views(&repository_root, &comparison, &descriptors);
     let review_store = ReviewStore::load(&repository_root, &comparison)?;
-    start_interactive_review(&file_views, &comparison, review_store)
+    start_interactive_review(&file_views, &comparison, review_store, keybindings)
 }

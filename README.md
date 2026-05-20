@@ -42,6 +42,7 @@ This opens the side-by-side review so you can check exactly what changed in your
 - Side-by-side panes with independent horizontal scroll offsets
 - Keyboard and mouse navigation (including wheel + shift-wheel)
 - Vim-like motion navigation (`h`/`j`/`k`/`l`, `g`/`G`, `Ctrl+u`/`Ctrl+d`)
+- Configurable key bindings
 - In-diff search (`/` + Enter, then `n` / `N` to navigate matches)
 - Per-file reviewed toggles (`r`) with local persistence under `.git`
 - Language-aware syntax highlighting and line-level add/delete tinting
@@ -65,6 +66,7 @@ deff --strategy range --base origin/main --head HEAD
 deff --strategy range --base origin/main --include-uncommitted
 deff --only-uncommitted
 deff --theme dark
+deff --config ~/.config/deff/config.toml
 ```
 
 Show help:
@@ -120,6 +122,21 @@ Theme selection:
 - By default, `deff` prefers a dark syntax theme (better for black/dark terminals).
 - Use `--theme auto|dark|light` to control rendering for your terminal.
 - `--theme` takes precedence over `DEFF_THEME=dark|light`.
+
+Key binding config:
+
+- Default filesystem locations: `~/.config/deff/config.toml` or `$XDG_CONFIG_HOME/deff/config.toml`
+- `--config <path>` to load specific config file
+- `--no-config` to ignore config files
+- Supported actions: `quit`, `previous_file`, `next_file`, `scroll_up`, `scroll_down`, `page_up`, `page_down`, `top`, `bottom`, `search`, `next_match`, `previous_match`, `next_hunk`, `previous_hunk`, `toggle_reviewed`
+- Key names: printable characters (`"j"`), arrows (`"left"`), paging keys (`"pageup"`), modifiers (`"ctrl-u"`, `"alt-j"`)
+- Entries under `[keybindings]` replace that action's defaults; omitted actions keep default bindings
+
+```toml
+[keybindings]
+page_down = "J"
+page_up = "K"
+```
 
 Custom syntax grammars:
 
