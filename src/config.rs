@@ -54,6 +54,39 @@ impl KeyBinding {
 
         key.modifiers.contains(KeyModifiers::SHIFT) == self.modifiers.contains(KeyModifiers::SHIFT)
     }
+
+    fn label(&self) -> String {
+        let mut parts = Vec::new();
+        if self.modifiers.contains(KeyModifiers::CONTROL) {
+            parts.push("ctrl".to_string());
+        }
+        if self.modifiers.contains(KeyModifiers::ALT) {
+            parts.push("alt".to_string());
+        }
+        if self.modifiers.contains(KeyModifiers::SHIFT)
+            && !matches!(self.code, KeyCode::Char(ch) if ch.is_ascii_uppercase())
+        {
+            parts.push("shift".to_string());
+        }
+
+        parts.push(match self.code {
+            KeyCode::Backspace => "backspace".to_string(),
+            KeyCode::Enter => "enter".to_string(),
+            KeyCode::Left => "left".to_string(),
+            KeyCode::Right => "right".to_string(),
+            KeyCode::Up => "up".to_string(),
+            KeyCode::Down => "down".to_string(),
+            KeyCode::Home => "home".to_string(),
+            KeyCode::End => "end".to_string(),
+            KeyCode::PageUp => "pageup".to_string(),
+            KeyCode::PageDown => "pagedown".to_string(),
+            KeyCode::Esc => "esc".to_string(),
+            KeyCode::Char(ch) => ch.to_string(),
+            _ => "?".to_string(),
+        });
+
+        parts.join("-")
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -126,6 +159,14 @@ impl KeyBindings {
                 .get(action)
                 .is_some_and(|bindings| bindings.iter().any(|binding| binding.matches(key)))
         })
+    }
+
+    pub(crate) fn primary_label_for_action(&self, action: Action) -> String {
+        self.bindings_by_action
+            .get(&action)
+            .and_then(|bindings| bindings.first())
+            .map(KeyBinding::label)
+            .unwrap_or_else(|| "?".to_string())
     }
 }
 
@@ -386,6 +427,26 @@ mod tests {
         assert_eq!(
             bindings.action_for_key(key(KeyCode::Char('j'), KeyModifiers::empty())),
             Some(Action::PageDown)
+        );
+    }
+
+    #[test]
+    fn primary_label_uses_configured_binding() {
+        let mut bindings = KeyBindings::default();
+        apply_config(
+            &mut bindings,
+            r#"
+            [keybindings]
+            page_down = "J"
+            previous_file = "alt-left"
+            "#,
+        )
+        .expect("config should parse");
+
+        assert_eq!(bindings.primary_label_for_action(Action::PageDown), "J");
+        assert_eq!(
+            bindings.primary_label_for_action(Action::PreviousFile),
+            "alt-left"
         );
     }
 }
