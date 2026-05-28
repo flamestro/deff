@@ -1,5 +1,6 @@
 use anyhow::{Result, bail};
 use clap::Parser;
+use std::path::PathBuf;
 
 use crate::model::{StrategyArg, StrategyId, ThemeMode};
 
@@ -17,6 +18,7 @@ const DEFAULT_HEAD_REF: &str = "HEAD";
   deff --strategy range --base <git-ref> [--head <git-ref>]
   deff --strategy range --base <git-ref> --include-uncommitted
   deff --theme dark
+  deff --config ~/.config/deff/config.toml
 
 Key bindings:
   h / left-arrow   previous file
@@ -33,7 +35,11 @@ Key bindings:
   /                start in-diff search
   n / N            next / previous search match
   r                toggle reviewed for current file
-  q                quit"#
+  q                quit
+
+Config:
+  Reads ~/.config/deff/config.toml or $XDG_CONFIG_HOME/deff/config.toml by default.
+  Use [keybindings] entries such as page_down = "J"."#
 )]
 struct Cli {
     #[arg(long, value_enum)]
@@ -48,6 +54,10 @@ struct Cli {
     only_uncommitted: bool,
     #[arg(long, value_enum, default_value_t = ThemeMode::Auto)]
     theme: ThemeMode,
+    #[arg(long)]
+    config: Option<PathBuf>,
+    #[arg(long)]
+    no_config: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -58,6 +68,8 @@ pub(crate) struct CliOptions {
     pub(crate) include_uncommitted: bool,
     pub(crate) only_uncommitted: bool,
     pub(crate) theme_mode: ThemeMode,
+    pub(crate) config_path: Option<PathBuf>,
+    pub(crate) no_config: bool,
 }
 
 impl TryFrom<Cli> for CliOptions {
@@ -106,6 +118,10 @@ impl TryFrom<Cli> for CliOptions {
             bail!("--include-uncommitted currently requires --head HEAD");
         }
 
+        if value.no_config && value.config.is_some() {
+            bail!("--config cannot be combined with --no-config");
+        }
+
         Ok(Self {
             strategy_id,
             base_ref: value.base,
@@ -113,6 +129,8 @@ impl TryFrom<Cli> for CliOptions {
             include_uncommitted: value.include_uncommitted,
             only_uncommitted: value.only_uncommitted,
             theme_mode: value.theme,
+            config_path: value.config,
+            no_config: value.no_config,
         })
     }
 }
@@ -134,6 +152,8 @@ mod tests {
             include_uncommitted: false,
             only_uncommitted: false,
             theme: ThemeMode::Auto,
+            config: None,
+            no_config: false,
         }
     }
 
@@ -174,6 +194,20 @@ mod tests {
             error
                 .to_string()
                 .contains("--only-uncommitted cannot be combined with --head")
+        );
+    }
+
+    #[test]
+    fn rejects_config_path_with_no_config() {
+        let mut cli = base_cli();
+        cli.config = Some(PathBuf::from("config.toml"));
+        cli.no_config = true;
+
+        let error = CliOptions::try_from(cli).expect_err("config options should be rejected");
+        assert!(
+            error
+                .to_string()
+                .contains("--config cannot be combined with --no-config")
         );
     }
 }

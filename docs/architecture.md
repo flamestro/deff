@@ -7,6 +7,7 @@
 - `src/lib.rs`: top-level orchestration (`run`) and dependency wiring.
 - `src/main.rs`: binary entrypoint and error exit handling.
 - `src/cli.rs`: clap definitions and argument validation into `CliOptions`.
+- `src/config.rs`: user config loading and key binding parsing.
 - `src/model.rs`: shared enums/structs for comparison metadata and file views.
 - `src/git.rs`: git command execution plus comparison strategy resolution.
 - `src/diff.rs`: file descriptor discovery, hunk highlight parsing, and view construction.
@@ -14,4 +15,3 @@
 - `src/app.rs`: state transitions for keyboard/mouse navigation.
 - `src/terminal.rs`: TUI lifecycle and event loop plumbing.
 - `src/text.rs`: pure string-width and formatting helpers.
-

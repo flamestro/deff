@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 
 use crate::{
+    config::{Action, KeyBindings},
     model::{DiffFileView, PaneOffsets, PaneSide},
     render::{create_frame_layout, get_body_line_count, get_max_pane_offsets, get_pane_for_column},
 };
@@ -441,6 +442,7 @@ pub(crate) fn handle_keypress(
     files: &[DiffFileView],
     app: &mut AppState,
     rows: u16,
+    keybindings: &KeyBindings,
 ) -> KeypressOutcome {
     if key.modifiers.contains(KeyModifiers::CONTROL)
         && matches!(key.code, KeyCode::Char('c') | KeyCode::Char('C'))
@@ -470,119 +472,77 @@ pub(crate) fn handle_keypress(
         return KeypressOutcome::default();
     }
 
-    match key.code {
-        KeyCode::Char('q') | KeyCode::Char('Q') => KeypressOutcome {
+    match keybindings.action_for_key(key) {
+        Some(Action::Quit) => KeypressOutcome {
             should_quit: true,
             review_toggled: None,
         },
-        KeyCode::Left => {
+        Some(Action::PreviousFile) => {
             if move_file(-1, files, app) {
                 app.refresh_search_matches_for_current_file(files);
             }
             KeypressOutcome::default()
         }
-        KeyCode::Right => {
+        Some(Action::NextFile) => {
             if move_file(1, files, app) {
                 app.refresh_search_matches_for_current_file(files);
             }
             KeypressOutcome::default()
         }
-        KeyCode::Up => {
+        Some(Action::ScrollUp) => {
             move_scroll(-1, files, app, rows);
             KeypressOutcome::default()
         }
-        KeyCode::Down => {
+        Some(Action::ScrollDown) => {
             move_scroll(1, files, app, rows);
             KeypressOutcome::default()
         }
-        KeyCode::Char('h') => {
-            if move_file(-1, files, app) {
-                app.refresh_search_matches_for_current_file(files);
-            }
-            KeypressOutcome::default()
-        }
-        KeyCode::Char('l') => {
-            if move_file(1, files, app) {
-                app.refresh_search_matches_for_current_file(files);
-            }
-            KeypressOutcome::default()
-        }
-        KeyCode::Char('k') => {
-            move_scroll(-1, files, app, rows);
-            KeypressOutcome::default()
-        }
-        KeyCode::Char('j') => {
-            move_scroll(1, files, app, rows);
-            KeypressOutcome::default()
-        }
-        KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+        Some(Action::PageUp) => {
             let page_size = get_body_line_count(rows as usize).max(1) as isize;
             move_scroll(-page_size, files, app, rows);
             KeypressOutcome::default()
         }
-        KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+        Some(Action::PageDown) => {
             let page_size = get_body_line_count(rows as usize).max(1) as isize;
             move_scroll(page_size, files, app, rows);
             KeypressOutcome::default()
         }
-        KeyCode::PageUp => {
-            let page_size = get_body_line_count(rows as usize).max(1) as isize;
-            move_scroll(-page_size, files, app, rows);
-            KeypressOutcome::default()
-        }
-        KeyCode::PageDown => {
-            let page_size = get_body_line_count(rows as usize).max(1) as isize;
-            move_scroll(page_size, files, app, rows);
-            KeypressOutcome::default()
-        }
-        KeyCode::Home => {
+        Some(Action::Top) => {
             scroll_to_top(app);
             KeypressOutcome::default()
         }
-        KeyCode::End => {
+        Some(Action::Bottom) => {
             scroll_to_bottom(files, app, rows);
             KeypressOutcome::default()
         }
-        KeyCode::Char('g') if key.modifiers.contains(KeyModifiers::SHIFT) => {
-            scroll_to_bottom(files, app, rows);
-            KeypressOutcome::default()
-        }
-        KeyCode::Char('G') => {
-            scroll_to_bottom(files, app, rows);
-            KeypressOutcome::default()
-        }
-        KeyCode::Char('g') => {
-            scroll_to_top(app);
-            KeypressOutcome::default()
-        }
-        KeyCode::Char('/') => {
+        Some(Action::Search) => {
             app.enter_search_input_mode();
             KeypressOutcome::default()
         }
-        KeyCode::Char('n') => {
+        Some(Action::NextMatch) => {
             app.jump_to_search_match(files, rows, true);
             KeypressOutcome::default()
         }
-        KeyCode::Char('N') => {
+        Some(Action::PreviousMatch) => {
             app.jump_to_search_match(files, rows, false);
             KeypressOutcome::default()
         }
-        KeyCode::Char('}') => {
+        Some(Action::NextHunk) => {
             app.jump_to_hunk(files, rows, true);
             KeypressOutcome::default()
         }
-        KeyCode::Char('{') => {
+        Some(Action::PreviousHunk) => {
             app.jump_to_hunk(files, rows, false);
             KeypressOutcome::default()
         }
-        KeyCode::Char('r') => {
+        Some(Action::ToggleReviewed) => {
             let reviewed = app.toggle_current_file_reviewed();
             KeypressOutcome {
                 should_quit: false,
                 review_toggled: Some((app.file_index, reviewed)),
             }
         }
-        _ => KeypressOutcome::default(),
+        None => KeypressOutcome::default(),
     }
 }
 

@@ -16,6 +16,7 @@ use ratatui::{
 
 use crate::{
     app::{AppState, handle_keypress, handle_mouse},
+    config::KeyBindings,
     model::{DiffFileView, ResolvedComparison},
     render::render_frame,
     review::ReviewStore,
@@ -60,6 +61,7 @@ fn run_event_loop<B: Backend>(
     files: &[DiffFileView],
     comparison: &ResolvedComparison,
     review_store: &mut ReviewStore,
+    keybindings: &KeyBindings,
 ) -> Result<()> {
     let initial_reviewed = review_store.reviewed_flags_for_files(files);
     let mut app = AppState::new(files.len(), initial_reviewed);
@@ -74,7 +76,7 @@ fn run_event_loop<B: Backend>(
 
                 let (_, rows) =
                     crossterm::terminal::size().context("failed to read terminal size")?;
-                let outcome = handle_keypress(key, files, &mut app, rows);
+                let outcome = handle_keypress(key, files, &mut app, rows, keybindings);
 
                 if let Some((file_index, reviewed)) = outcome.review_toggled {
                     review_store.set_reviewed(&files[file_index].review_key, reviewed);
@@ -104,6 +106,7 @@ pub(crate) fn start_interactive_review(
     files: &[DiffFileView],
     comparison: &ResolvedComparison,
     mut review_store: ReviewStore,
+    keybindings: KeyBindings,
 ) -> Result<()> {
     if !io::stdin().is_terminal() || !io::stdout().is_terminal() {
         bail!("Interactive TTY is required to run deff");
@@ -133,7 +136,13 @@ pub(crate) fn start_interactive_review(
         }
     };
 
-    let run_result = run_event_loop(&mut terminal, files, comparison, &mut review_store);
+    let run_result = run_event_loop(
+        &mut terminal,
+        files,
+        comparison,
+        &mut review_store,
+        &keybindings,
+    );
 
     let mut restore_error: Option<anyhow::Error> = None;
     if let Err(error) = disable_raw_mode() {
