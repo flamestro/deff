@@ -26,12 +26,14 @@ fn draw_app<B: Backend>(
     terminal: &mut Terminal<B>,
     files: &[DiffFileView],
     comparison: &ResolvedComparison,
+    keybindings: &KeyBindings,
     app: &mut AppState,
 ) -> Result<()> {
     let size = terminal.size()?;
     let render_output = render_frame(
         files,
         comparison,
+        keybindings,
         app.file_index,
         app.scroll_offset,
         app.current_offsets(),
@@ -65,7 +67,7 @@ fn run_event_loop<B: Backend>(
 ) -> Result<()> {
     let initial_reviewed = review_store.reviewed_flags_for_files(files);
     let mut app = AppState::new(files.len(), initial_reviewed);
-    draw_app(terminal, files, comparison, &mut app)?;
+    draw_app(terminal, files, comparison, keybindings, &mut app)?;
 
     loop {
         match event::read().context("failed to read terminal event")? {
@@ -96,7 +98,7 @@ fn run_event_loop<B: Backend>(
             Event::FocusGained | Event::FocusLost | Event::Paste(_) => {}
         }
 
-        draw_app(terminal, files, comparison, &mut app)?;
+        draw_app(terminal, files, comparison, keybindings, &mut app)?;
     }
 
     Ok(())

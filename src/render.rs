@@ -12,6 +12,7 @@ use syntect::{
 };
 
 use crate::{
+    config::{Action, KeyBindings},
     model::{
         DiffFileView, LineHighlightKind, PaneOffsets, PaneSide, ResolvedComparison, ThemeMode,
     },
@@ -137,6 +138,29 @@ fn syntax_for_language(language: &str) -> Option<&'static SyntaxReference> {
         .find_syntax_by_name(language)
         .or_else(|| syntaxes.find_syntax_by_token(language))
         .or_else(|| syntaxes.find_syntax_by_extension(language))
+}
+
+fn action_pair_label(keybindings: &KeyBindings, left: Action, right: Action) -> String {
+    format!(
+        "{}/{}",
+        keybindings.primary_label_for_action(left),
+        keybindings.primary_label_for_action(right)
+    )
+}
+
+fn key_legend(keybindings: &KeyBindings) -> String {
+    format!(
+        "{}: file  {}: scroll  {}: page  {}: top/bottom  {}: search  {}: match  {}: hunk  {}: reviewed  {}: quit",
+        action_pair_label(keybindings, Action::PreviousFile, Action::NextFile),
+        action_pair_label(keybindings, Action::ScrollDown, Action::ScrollUp),
+        action_pair_label(keybindings, Action::PageUp, Action::PageDown),
+        action_pair_label(keybindings, Action::Top, Action::Bottom),
+        keybindings.primary_label_for_action(Action::Search),
+        action_pair_label(keybindings, Action::NextMatch, Action::PreviousMatch),
+        action_pair_label(keybindings, Action::NextHunk, Action::PreviousHunk),
+        keybindings.primary_label_for_action(Action::ToggleReviewed),
+        keybindings.primary_label_for_action(Action::Quit),
+    )
 }
 
 fn base_style(tint_background: Option<Color>) -> Style {
@@ -336,6 +360,7 @@ pub(crate) fn get_pane_for_column(column: usize, layout: &FrameLayout) -> Option
 pub(crate) fn render_frame(
     files: &[DiffFileView],
     comparison: &ResolvedComparison,
+    keybindings: &KeyBindings,
     file_index: usize,
     scroll_offset: usize,
     pane_offsets: PaneOffsets,
@@ -488,7 +513,7 @@ pub(crate) fn render_frame(
         layout.columns,
     )));
     lines.push(Line::from(fit_line(
-        "h/l: file  j/k: scroll  ctrl-u/d: page  g/G: top/bottom  /: search  n/N: match  }/{: hunk  r: reviewed  q: quit",
+        &key_legend(keybindings),
         layout.columns,
     )));
     lines.push(Line::from(fit_line(
