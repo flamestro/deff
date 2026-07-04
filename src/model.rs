@@ -1,6 +1,7 @@
 use std::{
     collections::HashSet,
     fmt::{self, Display},
+    ops::RangeInclusive,
 };
 
 use clap::ValueEnum;
@@ -98,10 +99,14 @@ pub(crate) struct DiffFileView {
     pub(crate) review_key: String,
     pub(crate) left_lines: Vec<String>,
     pub(crate) right_lines: Vec<String>,
+    pub(crate) normalized_left_lines: Vec<String>,
+    pub(crate) normalized_right_lines: Vec<String>,
     pub(crate) left_language: Option<String>,
     pub(crate) right_language: Option<String>,
     pub(crate) left_deleted_line_indexes: HashSet<usize>,
     pub(crate) right_added_line_indexes: HashSet<usize>,
+    pub(crate) hunk_start_lines: Vec<usize>,
+    pub(crate) hunk_line_ranges: Vec<RangeInclusive<usize>>,
     pub(crate) left_max_content_length: usize,
     pub(crate) right_max_content_length: usize,
 }

@@ -16,7 +16,7 @@ use crate::{
     },
     review::compute_review_key,
     syntax::syntax_set,
-    text::get_max_normalized_line_length,
+    text::{get_max_line_length, normalize_content},
 };
 
 const MISSING_LEFT: &str = "<file does not exist in base revision>";
@@ -439,6 +439,38 @@ fn detect_syntax_name(file_path: Option<&str>, lines: &[String]) -> Option<Strin
         .map(|syntax| syntax.name.clone())
 }
 
+fn build_hunk_metadata(
+    left_deleted_line_indexes: &HashSet<usize>,
+    right_added_line_indexes: &HashSet<usize>,
+) -> (Vec<usize>, Vec<std::ops::RangeInclusive<usize>>) {
+    let mut changed: Vec<usize> = left_deleted_line_indexes
+        .iter()
+        .chain(right_added_line_indexes.iter())
+        .copied()
+        .collect();
+    changed.sort_unstable();
+    changed.dedup();
+
+    let mut starts = Vec::new();
+    let mut ranges = Vec::new();
+    let mut index = 0;
+    while index < changed.len() {
+        let start = changed[index];
+        let mut end = start;
+        index += 1;
+
+        while index < changed.len() && changed[index] == end + 1 {
+            end = changed[index];
+            index += 1;
+        }
+
+        starts.push(start);
+        ranges.push(start..=end);
+    }
+
+    (starts, ranges)
+}
+
 pub(crate) fn build_file_views(
     repo_root: &Path,
     comparison: &ResolvedComparison,
@@ -483,6 +515,21 @@ pub(crate) fn build_file_views(
             right_lines.len(),
         );
 
+        let normalized_left_lines: Vec<String> = left_lines
+            .iter()
+            .map(|line| normalize_content(line))
+            .collect();
+        let normalized_right_lines: Vec<String> = right_lines
+            .iter()
+            .map(|line| normalize_content(line))
+            .collect();
+        let left_max_content_length = get_max_line_length(&normalized_left_lines);
+        let right_max_content_length = get_max_line_length(&normalized_right_lines);
+        let (hunk_start_lines, hunk_line_ranges) = build_hunk_metadata(
+            &line_highlights.left_deleted_line_indexes,
+            &line_highlights.right_added_line_indexes,
+        );
+
         views.push(DiffFileView {
             descriptor: descriptor.clone(),
             review_key: compute_review_key(descriptor, &left_lines, &right_lines),
@@ -490,8 +537,12 @@ pub(crate) fn build_file_views(
             right_language: detect_syntax_name(descriptor.head_path.as_deref(), &right_lines),
             left_deleted_line_indexes: line_highlights.left_deleted_line_indexes,
             right_added_line_indexes: line_highlights.right_added_line_indexes,
-            left_max_content_length: get_max_normalized_line_length(&left_lines),
-            right_max_content_length: get_max_normalized_line_length(&right_lines),
+            hunk_start_lines,
+            hunk_line_ranges,
+            left_max_content_length,
+            right_max_content_length,
+            normalized_left_lines,
+            normalized_right_lines,
             left_lines,
             right_lines,
         });
@@ -505,8 +556,8 @@ mod tests {
     use crate::model::FileContentSource;
 
     use super::{
-        detect_syntax_name, parse_diff_name_status_output, parse_line_highlights_from_patch,
-        split_into_lines,
+        build_hunk_metadata, detect_syntax_name, parse_diff_name_status_output,
+        parse_line_highlights_from_patch, split_into_lines,
     };
 
     #[test]
@@ -537,6 +588,16 @@ mod tests {
     fn split_into_lines_trims_trailing_newline() {
         let lines = split_into_lines("a\nb\n");
         assert_eq!(lines, vec!["a".to_string(), "b".to_string()]);
+    }
+
+    #[test]
+    fn build_hunk_metadata_groups_contiguous_changed_lines() {
+        let left_deleted = [1, 2, 5].into_iter().collect();
+        let right_added = [2, 6].into_iter().collect();
+        let (starts, ranges) = build_hunk_metadata(&left_deleted, &right_added);
+
+        assert_eq!(starts, vec![1, 5]);
+        assert_eq!(ranges, vec![1..=2, 5..=6]);
     }
 
     #[test]

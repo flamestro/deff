@@ -46,10 +46,10 @@ pub(crate) fn normalize_content(value: &str) -> String {
     value.replace('\t', "  ").replace('\r', "")
 }
 
-pub(crate) fn get_max_normalized_line_length(lines: &[String]) -> usize {
+pub(crate) fn get_max_line_length(lines: &[String]) -> usize {
     lines
         .iter()
-        .map(|line| normalized_char_count(&normalize_content(line)))
+        .map(|line| normalized_char_count(line))
         .max()
         .unwrap_or(0)
 }
