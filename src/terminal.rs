@@ -11,7 +11,7 @@ use ratatui::{
     Terminal,
     backend::{Backend, CrosstermBackend},
     text::Text,
-    widgets::{Clear, Paragraph},
+    widgets::Paragraph,
 };
 
 use crate::{
@@ -51,7 +51,6 @@ fn draw_app<B: Backend>(
     let text = Text::from(render_output.lines);
     terminal.draw(move |frame| {
         let area = frame.area();
-        frame.render_widget(Clear, area);
         frame.render_widget(Paragraph::new(text), area);
     })?;
 

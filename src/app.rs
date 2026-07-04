@@ -154,6 +154,7 @@ impl AppState {
     }
 
     fn jump_to_hunk(&mut self, files: &[DiffFileView], rows: u16, forward: bool) {
+        let current_file = &files[self.file_index];
         let current_anchor = self
             .focused_hunk_lines
             .as_ref()
@@ -167,12 +168,15 @@ impl AppState {
             .copied()
             .or(self.hunk_anchor_by_file[self.file_index])
             .unwrap_or(self.scroll_offset);
-        let hunk_starts = build_hunk_start_lines(&files[self.file_index]);
 
         let target = if forward {
-            hunk_starts.iter().find(|&&line| line > current_anchor)
+            current_file
+                .hunk_start_lines
+                .iter()
+                .find(|&&line| line > current_anchor)
         } else {
-            hunk_starts
+            current_file
+                .hunk_start_lines
                 .iter()
                 .rev()
                 .find(|&&line| line < current_anchor)
@@ -181,7 +185,7 @@ impl AppState {
         if let Some(&line) = target {
             let max_scroll = max_scroll_for_current_file(files, self, rows);
             self.scroll_offset = line.min(max_scroll);
-            self.focused_hunk_lines = Some(build_hunk_line_range(&files[self.file_index], line));
+            self.focused_hunk_lines = Some(build_hunk_line_range(current_file, line));
             self.hunk_anchor_by_file[self.file_index] = Some(line);
             return;
         }
@@ -198,7 +202,7 @@ impl AppState {
             } else {
                 (self.file_index + file_count - step) % file_count
             };
-            let next_hunk_starts = build_hunk_start_lines(&files[next_index]);
+            let next_hunk_starts = &files[next_index].hunk_start_lines;
             let wrap_target = if forward {
                 next_hunk_starts.first()
             } else {
@@ -330,37 +334,12 @@ fn move_horizontal(
     }
 }
 
-fn build_hunk_start_lines(file: &DiffFileView) -> Vec<usize> {
-    let mut changed: Vec<usize> = file
-        .left_deleted_line_indexes
-        .iter()
-        .chain(file.right_added_line_indexes.iter())
-        .copied()
-        .collect();
-    changed.sort_unstable();
-    changed.dedup();
-
-    let changed_set: std::collections::HashSet<usize> = changed.iter().copied().collect();
-    changed
-        .into_iter()
-        .filter(|&line| line == 0 || !changed_set.contains(&(line - 1)))
-        .collect()
-}
-
 fn build_hunk_line_range(file: &DiffFileView, hunk_start: usize) -> HashSet<usize> {
-    let mut range = HashSet::new();
-    let max_lines = file.left_lines.len().max(file.right_lines.len());
-    let mut line = hunk_start;
-    while line < max_lines {
-        let is_changed = file.left_deleted_line_indexes.contains(&line)
-            || file.right_added_line_indexes.contains(&line);
-        if !is_changed {
-            break;
-        }
-        range.insert(line);
-        line += 1;
-    }
-    range
+    file.hunk_line_ranges
+        .iter()
+        .find(|range| *range.start() == hunk_start)
+        .map(|range| range.clone().collect())
+        .unwrap_or_default()
 }
 
 fn build_search_match_line_indexes(file: &DiffFileView, query: &str) -> Vec<usize> {
@@ -648,10 +627,14 @@ mod tests {
             review_key: "key".to_string(),
             left_lines: left_lines.iter().map(|line| line.to_string()).collect(),
             right_lines: right_lines.iter().map(|line| line.to_string()).collect(),
+            normalized_left_lines: left_lines.iter().map(|line| line.to_string()).collect(),
+            normalized_right_lines: right_lines.iter().map(|line| line.to_string()).collect(),
             left_language: Some("rust".to_string()),
             right_language: Some("rust".to_string()),
             left_deleted_line_indexes: HashSet::new(),
             right_added_line_indexes: HashSet::new(),
+            hunk_start_lines: Vec::new(),
+            hunk_line_ranges: Vec::new(),
             left_max_content_length: 0,
             right_max_content_length: 0,
         }
@@ -666,6 +649,18 @@ mod tests {
         let mut file = create_test_file(left_lines, right_lines);
         file.left_deleted_line_indexes = left_deleted.iter().copied().collect();
         file.right_added_line_indexes = right_added.iter().copied().collect();
+        file.hunk_start_lines = left_deleted
+            .iter()
+            .chain(right_added.iter())
+            .copied()
+            .collect::<std::collections::BTreeSet<_>>()
+            .into_iter()
+            .collect();
+        file.hunk_line_ranges = file
+            .hunk_start_lines
+            .iter()
+            .map(|line| *line..=*line)
+            .collect();
         file
     }
 

@@ -17,7 +17,7 @@ use crate::{
         DiffFileView, LineHighlightKind, PaneOffsets, PaneSide, ResolvedComparison, ThemeMode,
     },
     syntax::syntax_set,
-    text::{fit_line, normalize_content, normalized_char_count, pad_to_width, slice_chars},
+    text::{fit_line, normalized_char_count, pad_to_width, slice_chars},
 };
 
 const HEADER_LINE_COUNT: usize = 4;
@@ -272,7 +272,7 @@ fn format_pane_line(
     }
 
     let content_width = pane_width - prefix_width;
-    let content_text = line_value.map(normalize_content).unwrap_or_default();
+    let content_text = line_value.unwrap_or_default();
     let visible_content = slice_chars(&content_text, horizontal_offset, content_width);
     let padded_visible_content = pad_to_width(visible_content, content_width);
 
@@ -388,9 +388,12 @@ pub(crate) fn render_frame(
     let mut body_lines: Vec<Line<'static>> = Vec::with_capacity(layout.body_line_count);
     for row in 0..layout.body_line_count {
         let line_number = clamped_scroll_offset + row;
-        let left_line = current_file.left_lines.get(line_number).map(String::as_str);
+        let left_line = current_file
+            .normalized_left_lines
+            .get(line_number)
+            .map(String::as_str);
         let right_line = current_file
-            .right_lines
+            .normalized_right_lines
             .get(line_number)
             .map(String::as_str);
         let left_highlight_kind = if current_file
